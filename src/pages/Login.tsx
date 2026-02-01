@@ -33,16 +33,20 @@ export default function Login() {
     setLoading(true);
     
     try {
-      const { error } = await signIn(email, password);
+      const { error, needsRegistration } = await signIn(email, password);
 
       if (error) {
+        if (needsRegistration) {
+          toast.info("המשתמש לא נמצא - מעביר להרשמה");
+          navigate("/register", { state: { email } });
+          return;
+        }
+        
         if (error.message.includes("לא מגיב") || error.message.includes("תקשורת")) {
           setNetworkError(error.message);
         } else {
           toast.error("שגיאה בהתחברות", {
-            description: error.message === "Invalid login credentials" 
-              ? "אימייל או סיסמה שגויים" 
-              : error.message,
+            description: error.message,
           });
         }
       } else {
