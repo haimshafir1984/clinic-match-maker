@@ -45,7 +45,7 @@ export default function Register() {
     }
 
     setLoading(true);
-    const { error } = await signUp(email, password);
+    const { error } = await signUp(email, password, role, email.split("@")[0]);
     setLoading(false);
 
     if (error) {
@@ -53,12 +53,8 @@ export default function Register() {
         description: error.message,
       });
     } else {
-      toast.success("נרשמת בהצלחה!", {
-        description: "נא לאמת את האימייל שלך לפני ההתחברות",
-      });
-      // Store role in localStorage to use after email verification
-      localStorage.setItem("pendingRole", role);
-      navigate("/login");
+      toast.success("נרשמת בהצלחה!");
+      navigate("/swipe");
     }
   };
 

@@ -1,7 +1,6 @@
 // API Layer for ClinicMatch
-// This provides a clean API interface while using Supabase under the hood
+// This connects to the Render backend at https://clinicmatch.onrender.com
 
-import { supabase } from "@/integrations/supabase/client";
 import { 
   MatchCardData, 
   SwipeRequest, 
@@ -9,42 +8,35 @@ import {
   Match, 
   CurrentUser,
   UserRole,
-  Availability,
-  SalaryRange
+  AuthResponse
 } from "@/types";
-import { Tables } from "@/integrations/supabase/types";
 
-type Profile = Tables<"profiles">;
+const API_BASE_URL = "https://clinicmatch.onrender.com";
 
-// Transform database profile to MatchCardData
-function transformToMatchCard(profile: Profile): MatchCardData {
-  const isClinic = profile.role === "clinic";
+// Helper function for API calls
+async function apiCall<T>(
+  endpoint: string, 
+  options: RequestInit = {}
+): Promise<T> {
+  const token = localStorage.getItem("auth_token");
   
-  const availability: Availability = {
-    days: profile.availability_days || [],
-    hours: profile.availability_hours,
-    startDate: profile.availability_date,
+  const headers: HeadersInit = {
+    "Content-Type": "application/json",
+    ...(token && { Authorization: `Bearer ${token}` }),
+    ...options.headers,
   };
 
-  const salaryRange: SalaryRange = {
-    min: profile.salary_min,
-    max: profile.salary_max,
-  };
+  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    ...options,
+    headers,
+  });
 
-  return {
-    id: profile.id,
-    name: profile.name,
-    position: isClinic ? profile.required_position : profile.position,
-    location: profile.city || profile.preferred_area,
-    availability,
-    salaryRange,
-    experienceYears: profile.experience_years,
-    imageUrl: profile.avatar_url,
-    role: profile.role as UserRole,
-    description: profile.description,
-    jobType: profile.job_type as MatchCardData["jobType"],
-    radiusKm: profile.radius_km,
-  };
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ message: "API Error" }));
+    throw new Error(error.message || `HTTP ${response.status}`);
+  }
+
+  return response.json();
 }
 
 // GET /api/feed - Get profiles for discovery feed
@@ -53,71 +45,38 @@ export async function getFeed(currentUser: CurrentUser): Promise<MatchCardData[]
     return [];
   }
 
-  // Get profiles that the user hasn't swiped on yet
-  const { data: swipedProfiles } = await supabase
-    .from("likes")
-    .select("to_user_id")
-    .eq("from_user_id", currentUser.profileId);
-
-  const swipedIds = swipedProfiles?.map((l) => l.to_user_id) || [];
-
-  // Get opposite role profiles (CLINIC sees WORKER, WORKER sees CLINIC)
-  const oppositeRole = currentUser.role === "clinic" ? "worker" : "clinic";
-
-  let query = supabase
-    .from("profiles")
-    .select("*")
-    .eq("role", oppositeRole)
-    .neq("id", currentUser.profileId);
-
-  // Exclude already swiped profiles
-  if (swipedIds.length > 0) {
-    query = query.not("id", "in", `(${swipedIds.join(",")})`);
+  try {
+    const response = await apiCall<{ profiles: MatchCardData[] }>(
+      `/api/feed?userId=${currentUser.profileId}&role=${currentUser.role}`
+    );
+    return response.profiles || [];
+  } catch (error) {
+    console.error("Error fetching feed:", error);
+    return [];
   }
-
-  const { data, error } = await query.limit(20);
-
-  if (error) throw error;
-
-  return (data || []).map(transformToMatchCard);
 }
 
-// POST /api/swipes - Record a swipe action
+// POST /api/swipe - Record a swipe action
 export async function postSwipe(request: SwipeRequest): Promise<SwipeResponse> {
-  const isLike = request.type === "LIKE";
-
-  // Insert the swipe record
-  const { error: swipeError } = await supabase.from("likes").insert({
-    from_user_id: request.swiperId,
-    to_user_id: request.swipedId,
-    is_like: isLike,
-  });
-
-  if (swipeError) {
-    throw new Error(swipeError.message);
-  }
-
-  // Check for match if it was a LIKE
-  if (isLike) {
-    const { data: match } = await supabase
-      .from("matches")
-      .select("id")
-      .or(
-        `and(user1_id.eq.${request.swiperId},user2_id.eq.${request.swipedId}),and(user1_id.eq.${request.swipedId},user2_id.eq.${request.swiperId})`
-      )
-      .maybeSingle();
+  try {
+    const response = await apiCall<SwipeResponse>("/api/swipe", {
+      method: "POST",
+      body: JSON.stringify({
+        swiper_id: request.swiperId,
+        swiped_id: request.swipedId,
+        type: request.type,
+      }),
+    });
 
     return {
       success: true,
-      isMatch: !!match,
-      matchId: match?.id,
+      isMatch: response.isMatch || false,
+      matchId: response.matchId,
     };
+  } catch (error) {
+    console.error("Error posting swipe:", error);
+    throw error;
   }
-
-  return {
-    success: true,
-    isMatch: false,
-  };
 }
 
 // GET /api/matches - Get all matches for current user
@@ -126,110 +85,124 @@ export async function getMatches(currentUser: CurrentUser): Promise<Match[]> {
     return [];
   }
 
-  const { data: matches, error } = await supabase
-    .from("matches")
-    .select("*")
-    .or(`user1_id.eq.${currentUser.profileId},user2_id.eq.${currentUser.profileId}`)
-    .order("created_at", { ascending: false });
+  try {
+    const response = await apiCall<{ matches: Match[] }>(
+      `/api/matches?userId=${currentUser.profileId}`
+    );
+    return response.matches || [];
+  } catch (error) {
+    console.error("Error fetching matches:", error);
+    return [];
+  }
+}
 
-  if (error) throw error;
-  if (!matches || matches.length === 0) return [];
+// POST /api/auth/login
+export async function login(
+  email: string, 
+  password: string
+): Promise<{ user: CurrentUser | null; token: string | null; error: string | null }> {
+  try {
+    const response = await apiCall<AuthResponse>("/api/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    });
 
-  // Get other users' profiles
-  const otherUserIds = matches.map((m) =>
-    m.user1_id === currentUser.profileId ? m.user2_id : m.user1_id
-  );
+    if (response.user && response.token) {
+      localStorage.setItem("auth_token", response.token);
+      return { user: response.user, token: response.token, error: null };
+    }
 
-  const { data: profiles, error: profilesError } = await supabase
-    .from("profiles")
-    .select("*")
-    .in("id", otherUserIds);
-
-  if (profilesError) throw profilesError;
-
-  const profilesMap = new Map((profiles || []).map((p) => [p.id, p]));
-
-  return matches.map((m) => {
-    const otherId = m.user1_id === currentUser.profileId ? m.user2_id : m.user1_id;
-    const otherProfile = profilesMap.get(otherId);
-
-    return {
-      id: m.id,
-      createdAt: m.created_at,
-      isClosed: m.is_closed,
-      otherProfile: otherProfile ? transformToMatchCard(otherProfile) : {
-        id: otherId,
-        name: "Unknown",
-        position: null,
-        location: null,
-        availability: { days: [], hours: null, startDate: null },
-        salaryRange: { min: null, max: null },
-        experienceYears: null,
-        imageUrl: null,
-        role: "worker" as UserRole,
-        description: null,
-        jobType: null,
-        radiusKm: null,
-      },
+    return { user: null, token: null, error: "Login failed" };
+  } catch (error) {
+    return { 
+      user: null, 
+      token: null, 
+      error: error instanceof Error ? error.message : "Login failed" 
     };
-  });
+  }
 }
 
-// POST /api/auth/login - handled by Supabase Auth
-// This is just a wrapper for consistency
-export async function login(email: string, password: string): Promise<{ user: CurrentUser | null; error: string | null }> {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
-  });
+// POST /api/auth/register
+export async function register(
+  email: string, 
+  password: string,
+  role: UserRole,
+  name: string
+): Promise<{ user: CurrentUser | null; token: string | null; error: string | null }> {
+  try {
+    const response = await apiCall<AuthResponse>("/api/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ email, password, role, name }),
+    });
 
-  if (error) {
-    return { user: null, error: error.message };
+    if (response.user && response.token) {
+      localStorage.setItem("auth_token", response.token);
+      return { user: response.user, token: response.token, error: null };
+    }
+
+    return { user: null, token: null, error: "Registration failed" };
+  } catch (error) {
+    return { 
+      user: null, 
+      token: null, 
+      error: error instanceof Error ? error.message : "Registration failed" 
+    };
   }
-
-  if (!data.user) {
-    return { user: null, error: "Login failed" };
-  }
-
-  // Fetch user profile
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("user_id", data.user.id)
-    .maybeSingle();
-
-  const currentUser: CurrentUser = {
-    id: data.user.id,
-    email: data.user.email || "",
-    profileId: profile?.id || null,
-    role: (profile?.role as UserRole) || null,
-    name: profile?.name || null,
-    imageUrl: profile?.avatar_url || null,
-    isProfileComplete: !!profile,
-  };
-
-  return { user: currentUser, error: null };
 }
 
-// Get current user with profile
+// GET /api/auth/me - Get current user
 export async function getCurrentUser(): Promise<CurrentUser | null> {
-  const { data: { user } } = await supabase.auth.getUser();
+  const token = localStorage.getItem("auth_token");
+  if (!token) return null;
 
-  if (!user) return null;
+  try {
+    const response = await apiCall<{ user: CurrentUser }>("/api/auth/me");
+    return response.user;
+  } catch (error) {
+    console.error("Error fetching current user:", error);
+    localStorage.removeItem("auth_token");
+    return null;
+  }
+}
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("user_id", user.id)
-    .maybeSingle();
+// POST /api/auth/logout
+export async function logout(): Promise<void> {
+  try {
+    await apiCall("/api/auth/logout", { method: "POST" });
+  } catch (error) {
+    console.error("Error logging out:", error);
+  } finally {
+    localStorage.removeItem("auth_token");
+  }
+}
 
-  return {
-    id: user.id,
-    email: user.email || "",
-    profileId: profile?.id || null,
-    role: (profile?.role as UserRole) || null,
-    name: profile?.name || null,
-    imageUrl: profile?.avatar_url || null,
-    isProfileComplete: !!profile,
-  };
+// GET /api/messages - Get messages for a match
+export async function getMessages(matchId: string): Promise<any[]> {
+  try {
+    const response = await apiCall<{ messages: any[] }>(
+      `/api/messages?matchId=${matchId}`
+    );
+    return response.messages || [];
+  } catch (error) {
+    console.error("Error fetching messages:", error);
+    return [];
+  }
+}
+
+// POST /api/messages - Send a message
+export async function sendMessage(
+  matchId: string, 
+  senderId: string, 
+  content: string
+): Promise<any> {
+  try {
+    const response = await apiCall<any>("/api/messages", {
+      method: "POST",
+      body: JSON.stringify({ match_id: matchId, sender_id: senderId, content }),
+    });
+    return response;
+  } catch (error) {
+    console.error("Error sending message:", error);
+    throw error;
+  }
 }
