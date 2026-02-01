@@ -204,10 +204,14 @@ export async function createProfile(
     
     return { user, error: null };
   } catch (error) {
-    return { 
-      user: null, 
-      error: error instanceof Error ? error.message : "יצירת הפרופיל נכשלה" 
-    };
+    if (error instanceof Error) {
+      // Handle duplicate email error
+      if (error.message.includes("duplicate") || error.message.includes("unique constraint")) {
+        return { user: null, error: "האימייל כבר רשום במערכת. נסה להתחבר במקום להירשם." };
+      }
+      return { user: null, error: error.message };
+    }
+    return { user: null, error: "יצירת הפרופיל נכשלה" };
   }
 }
 
