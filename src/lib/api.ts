@@ -156,12 +156,14 @@ export async function login(
   _password: string
 ): Promise<{ user: CurrentUser | null; error: string | null; needsRegistration?: boolean }> {
   try {
-    const response = await apiCall<BackendProfile>("/auth/login", {
+    const response = await apiCall<{ success: boolean; user: BackendProfile } | BackendProfile>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ email }),
     });
 
-    const user = transformToCurrentUser(response);
+    // Handle both response formats: { success, user } or direct profile
+    const profile = "user" in response ? response.user : response;
+    const user = transformToCurrentUser(profile);
     localStorage.setItem("current_user", JSON.stringify(user));
     
     return { user, error: null };
