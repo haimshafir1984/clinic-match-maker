@@ -13,7 +13,7 @@ interface AuthContextType {
   currentUser: CurrentUser | null;
   loading: boolean;
   signUp: (data: ProfileCreateData) => Promise<{ error: Error | null }>;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: Error | null; needsRegistration?: boolean }>;
   signOut: () => Promise<void>;
   refreshCurrentUser: () => Promise<void>;
 }
@@ -53,11 +53,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: null };
   };
 
-  const signIn = async (email: string, password: string) => {
-    const { user: loggedInUser, error } = await apiLogin(email, password);
+  const signIn = async (email: string, password: string): Promise<{ error: Error | null; needsRegistration?: boolean }> => {
+    const { user: loggedInUser, error, needsRegistration } = await apiLogin(email, password);
     
     if (error) {
-      return { error: new Error(error) };
+      return { error: new Error(error), needsRegistration };
     }
     
     if (loggedInUser) {

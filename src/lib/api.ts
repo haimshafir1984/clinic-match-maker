@@ -150,20 +150,31 @@ function transformToCurrentUser(profile: BackendProfile): CurrentUser {
   };
 }
 
-// POST /api/login - Login with email
+// POST /api/auth/login - Login with email
 export async function login(
   email: string, 
   _password: string
-): Promise<{ user: CurrentUser | null; error: string | null }> {
-  // Backend check:
-  // - POST /api/auth/login returned 404 in the client network log
-  // - GET /api/profiles and GET /api/profiles/email/:email return 404
-  // לכן כרגע אין לנו דרך לבצע Login אמיתי מול השרת.
-  return {
-    user: null,
-    error:
-      "השרת כרגע לא תומך בהתחברות (אין endpoint Login פעיל). ניתן להירשם דרך /profiles או להוסיף ב-Backend endpoint כמו POST /api/auth/login או GET /api/profiles/by-email." ,
-  };
+): Promise<{ user: CurrentUser | null; error: string | null; needsRegistration?: boolean }> {
+  try {
+    const response = await apiCall<BackendProfile>("/auth/login", {
+      method: "POST",
+      body: JSON.stringify({ email }),
+    });
+
+    const user = transformToCurrentUser(response);
+    localStorage.setItem("current_user", JSON.stringify(user));
+    
+    return { user, error: null };
+  } catch (error) {
+    if (error instanceof Error) {
+      // Check if user not found - needs registration
+      if (error.message.includes("404") || error.message.includes("not found") || error.message.includes("לא נמצא")) {
+        return { user: null, error: "המשתמש לא נמצא", needsRegistration: true };
+      }
+      return { user: null, error: error.message };
+    }
+    return { user: null, error: "התחברות נכשלה" };
+  }
 }
 
 // Profile creation data
