@@ -124,28 +124,49 @@ export async function getMatches(currentUser: CurrentUser): Promise<Match[]> {
   }
 }
 
-// POST /api/auth/login
+// Backend profile response structure
+interface BackendProfile {
+  id: string;
+  email: string;
+  role: string;
+  name: string;
+  position?: string;
+  location?: string;
+  salary_info?: { min?: number; max?: number } | null;
+  availability?: { days?: string[]; hours?: string; start_date?: string } | null;
+  created_at?: string;
+}
+
+// Transform backend profile to CurrentUser
+function transformToCurrentUser(profile: BackendProfile): CurrentUser {
+  return {
+    id: profile.id,
+    email: profile.email,
+    profileId: profile.id,
+    role: profile.role.toLowerCase() as UserRole,
+    name: profile.name,
+    imageUrl: null,
+    isProfileComplete: true,
+  };
+}
+
+// POST /api/login - Login with email
 export async function login(
   email: string, 
-  password: string
-): Promise<{ user: CurrentUser | null; token: string | null; error: string | null }> {
+  _password: string // Password not used in current backend
+): Promise<{ user: CurrentUser | null; error: string | null }> {
   try {
-    const response = await apiCall<AuthResponse>("/auth/login", {
-      method: "POST",
-      body: JSON.stringify({ email, password }),
-    });
-
-    if (response.user && response.token) {
-      localStorage.setItem("auth_token", response.token);
-      return { user: response.user, token: response.token, error: null };
-    }
-
-    return { user: null, token: null, error: "התחברות נכשלה" };
+    // Try to get profile by email
+    const response = await apiCall<BackendProfile>(`/profiles/email/${encodeURIComponent(email)}`);
+    
+    const user = transformToCurrentUser(response);
+    localStorage.setItem("current_user", JSON.stringify(user));
+    
+    return { user, error: null };
   } catch (error) {
     return { 
       user: null, 
-      token: null, 
-      error: error instanceof Error ? error.message : "התחברות נכשלה" 
+      error: error instanceof Error ? error.message : "התחברות נכשלה - המשתמש לא נמצא" 
     };
   }
 }
@@ -171,56 +192,42 @@ export interface ProfileCreateData {
 // POST /api/profiles - Create a new profile (signup)
 export async function createProfile(
   data: ProfileCreateData
-): Promise<{ user: CurrentUser | null; token: string | null; error: string | null }> {
+): Promise<{ user: CurrentUser | null; error: string | null }> {
   try {
-    const response = await apiCall<AuthResponse>("/profiles", {
+    const response = await apiCall<BackendProfile>("/profiles", {
       method: "POST",
       body: JSON.stringify(data),
     });
 
-    if (response.user && response.token) {
-      localStorage.setItem("auth_token", response.token);
-      return { user: response.user, token: response.token, error: null };
-    }
-
-    return { user: null, token: null, error: "יצירת הפרופיל נכשלה" };
+    const user = transformToCurrentUser(response);
+    localStorage.setItem("current_user", JSON.stringify(user));
+    
+    return { user, error: null };
   } catch (error) {
     return { 
       user: null, 
-      token: null, 
       error: error instanceof Error ? error.message : "יצירת הפרופיל נכשלה" 
     };
   }
 }
 
-// GET /api/auth/me - Get current user
+// Get current user from localStorage
 export async function getCurrentUser(): Promise<CurrentUser | null> {
-  const token = localStorage.getItem("auth_token");
-  if (!token) return null;
+  const stored = localStorage.getItem("current_user");
+  if (!stored) return null;
 
   try {
-    const response = await apiCall<{ user: CurrentUser } | CurrentUser>("/auth/me");
-    
-    if ("user" in response) {
-      return response.user;
-    }
-    return response;
+    return JSON.parse(stored) as CurrentUser;
   } catch (error) {
-    console.error("Error fetching current user:", error);
-    localStorage.removeItem("auth_token");
+    console.error("Error parsing current user:", error);
+    localStorage.removeItem("current_user");
     return null;
   }
 }
 
-// POST /api/auth/logout
+// Logout - clear local storage
 export async function logout(): Promise<void> {
-  try {
-    await apiCall("/auth/logout", { method: "POST" });
-  } catch (error) {
-    console.error("Error logging out:", error);
-  } finally {
-    localStorage.removeItem("auth_token");
-  }
+  localStorage.removeItem("current_user");
 }
 
 // GET /api/messages/{matchId} - Get messages for a match
