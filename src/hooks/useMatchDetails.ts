@@ -1,70 +1,29 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useProfile } from "./useProfile";
-
-interface MatchWithProfile {
-  id: string;
-  created_at: string;
-  is_closed: boolean;
-  user1_id: string;
-  user2_id: string;
-  other_profile: {
-    id: string;
-    name: string;
-    avatar_url: string | null;
-    role: string;
-    position: string | null;
-    required_position: string | null;
-    city: string | null;
-  };
-}
+import { useAuth } from "@/contexts/AuthContext";
+import { getMatches, closeMatch as apiCloseMatch } from "@/lib/api";
+import { Match } from "@/types";
 
 export function useMatchDetails(matchId: string) {
   const queryClient = useQueryClient();
-  const { data: myProfile } = useProfile();
+  const { currentUser } = useAuth();
 
   const query = useQuery({
     queryKey: ["match", matchId],
-    queryFn: async () => {
-      if (!myProfile) return null;
+    queryFn: async (): Promise<Match | null> => {
+      if (!currentUser?.profileId) return null;
 
-      const { data: match, error } = await supabase
-        .from("matches")
-        .select("*")
-        .eq("id", matchId)
-        .single();
-
-      if (error) throw error;
-      if (!match) return null;
-
-      const otherId = match.user1_id === myProfile.id ? match.user2_id : match.user1_id;
-
-      const { data: otherProfile, error: profileError } = await supabase
-        .from("profiles")
-        .select("id, name, avatar_url, role, position, required_position, city")
-        .eq("id", otherId)
-        .single();
-
-      if (profileError) throw profileError;
-
-      return {
-        ...match,
-        other_profile: otherProfile,
-      } as MatchWithProfile;
+      // Get all matches and find the specific one
+      const matches = await getMatches(currentUser);
+      const match = matches.find((m) => m.id === matchId);
+      return match || null;
     },
-    enabled: !!matchId && !!myProfile,
+    enabled: !!matchId && !!currentUser?.profileId,
   });
 
   const closeMutation = useMutation({
     mutationFn: async () => {
-      if (!myProfile) throw new Error("No profile");
-
-      const { error } = await supabase
-        .from("matches")
-        .update({ is_closed: true, closed_by: myProfile.id })
-        .eq("id", matchId);
-
-      if (error) throw error;
+      if (!currentUser?.profileId) throw new Error("No profile");
+      await apiCloseMatch(matchId, currentUser.profileId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["match", matchId] });

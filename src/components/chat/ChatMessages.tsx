@@ -1,16 +1,10 @@
 import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { useProfile } from "@/hooks/useProfile";
+import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { he } from "date-fns/locale";
-
-interface Message {
-  id: string;
-  content: string;
-  sender_id: string;
-  created_at: string;
-}
+import { Message } from "@/types";
 
 interface ChatMessagesProps {
   messages: Message[];
@@ -18,7 +12,7 @@ interface ChatMessagesProps {
 }
 
 export function ChatMessages({ messages, isClosed }: ChatMessagesProps) {
-  const { data: myProfile } = useProfile();
+  const { currentUser } = useAuth();
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -40,18 +34,18 @@ export function ChatMessages({ messages, isClosed }: ChatMessagesProps) {
 
   return (
     <div className="flex-1 overflow-y-auto p-4 space-y-3">
-      {messages.map((message, index) => {
-        const isMe = message.sender_id === myProfile?.id;
+    {messages.map((message, index) => {
+        const isMe = message.senderId === currentUser?.profileId;
         const showTime = 
           index === 0 || 
-          new Date(message.created_at).getTime() - 
-          new Date(messages[index - 1].created_at).getTime() > 300000;
+          new Date(message.createdAt).getTime() - 
+          new Date(messages[index - 1].createdAt).getTime() > 300000;
 
         return (
           <div key={message.id}>
             {showTime && (
               <p className="text-center text-xs text-muted-foreground my-2">
-                {format(new Date(message.created_at), "EEEE, HH:mm", { locale: he })}
+                {format(new Date(message.createdAt), "EEEE, HH:mm", { locale: he })}
               </p>
             )}
             <motion.div

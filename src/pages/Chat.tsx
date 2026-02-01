@@ -37,8 +37,8 @@ export default function Chat() {
     );
   }
 
-  const { other_profile } = match;
-  const isClinic = other_profile.role === "clinic";
+  const otherProfile = match.otherProfile;
+  const isClinic = otherProfile.role === "clinic";
   const RoleIcon = isClinic ? Building2 : UserRound;
 
   const handleCloseMatch = async () => {
@@ -62,20 +62,20 @@ export default function Chat() {
           </Link>
 
           <Avatar className="w-10 h-10">
-            <AvatarImage src={other_profile.avatar_url || undefined} />
+            <AvatarImage src={otherProfile.imageUrl || undefined} />
             <AvatarFallback>
               <RoleIcon className="w-5 h-5 text-primary" />
             </AvatarFallback>
           </Avatar>
 
           <div className="flex-1">
-            <h2 className="font-semibold">{other_profile.name}</h2>
+            <h2 className="font-semibold">{otherProfile.name}</h2>
             <p className="text-xs text-muted-foreground">
               {isClinic ? "מרפאה" : "עובד/ת"}
             </p>
           </div>
 
-          {!match.is_closed && (
+          {!match.isClosed && (
             <Button
               variant="ghost"
               size="icon"
@@ -88,12 +88,12 @@ export default function Chat() {
         </header>
 
         {/* Messages */}
-        <ChatMessages messages={messages || []} isClosed={match.is_closed} />
+        <ChatMessages messages={messages || []} isClosed={match.isClosed} />
 
         {/* Input */}
-        {!match.is_closed && <ChatInput onSend={sendMessage} />}
+        {!match.isClosed && <ChatInput onSend={sendMessage} />}
 
-        {match.is_closed && (
+        {match.isClosed && (
           <div className="p-4 bg-muted text-center text-sm text-muted-foreground">
             ההתאמה הזו נסגרה
           </div>

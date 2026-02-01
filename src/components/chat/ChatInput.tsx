@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Send } from "lucide-react";
 
 interface ChatInputProps {
-  onSend: (content: string) => Promise<void>;
+  onSend: (content: string) => Promise<unknown>;
 }
 
 export function ChatInput({ onSend }: ChatInputProps) {
