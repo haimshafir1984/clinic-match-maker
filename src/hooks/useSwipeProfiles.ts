@@ -1,51 +1,62 @@
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
-import { useProfile } from "./useProfile";
-import { Tables } from "@/integrations/supabase/types";
-
-type Profile = Tables<"profiles">;
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthContext";
+import { getFeed, postSwipe } from "@/lib/api";
+import { MatchCardData, SwipeType } from "@/types";
 
 export function useSwipeProfiles() {
-  const { data: myProfile } = useProfile();
+  const { currentUser } = useAuth();
 
   const query = useQuery({
-    queryKey: ["swipe-profiles", myProfile?.id, myProfile?.role],
+    queryKey: ["swipe-profiles", currentUser?.profileId, currentUser?.role],
     queryFn: async () => {
-      if (!myProfile) return [];
-
-      // Get profiles that I haven't liked/passed yet
-      const { data: likedProfiles } = await supabase
-        .from("likes")
-        .select("to_user_id")
-        .eq("from_user_id", myProfile.id);
-
-      const likedIds = likedProfiles?.map((l) => l.to_user_id) || [];
-
-      // Get opposite role profiles
-      const oppositeRole = myProfile.role === "clinic" ? "worker" : "clinic";
-
-      let query = supabase
-        .from("profiles")
-        .select("*")
-        .eq("role", oppositeRole)
-        .neq("id", myProfile.id);
-
-      // Exclude already liked/passed profiles
-      if (likedIds.length > 0) {
-        query = query.not("id", "in", `(${likedIds.join(",")})`);
-      }
-
-      const { data, error } = await query.limit(20);
-
-      if (error) throw error;
-      return data as Profile[];
+      if (!currentUser) return [];
+      return getFeed(currentUser);
     },
-    enabled: !!myProfile,
+    enabled: !!currentUser?.profileId,
   });
 
   return {
-    profiles: query.data,
+    profiles: query.data || [],
     isLoading: query.isLoading,
     refetch: query.refetch,
+  };
+}
+
+export function useSwipe() {
+  const queryClient = useQueryClient();
+  const { currentUser } = useAuth();
+
+  const swipeMutation = useMutation({
+    mutationFn: async ({ targetId, type }: { targetId: string; type: SwipeType }) => {
+      if (!currentUser?.profileId) throw new Error("No profile");
+
+      return postSwipe({
+        swiperId: currentUser.profileId,
+        swipedId: targetId,
+        type,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["swipe-profiles"] });
+      queryClient.invalidateQueries({ queryKey: ["matches"] });
+    },
+  });
+
+  const like = async (targetId: string) => {
+    const result = await swipeMutation.mutateAsync({ targetId, type: "LIKE" });
+    return {
+      isMatch: result.isMatch,
+      matchId: result.matchId,
+    };
+  };
+
+  const pass = async (targetId: string) => {
+    await swipeMutation.mutateAsync({ targetId, type: "PASS" });
+  };
+
+  return {
+    like,
+    pass,
+    isLoading: swipeMutation.isPending,
   };
 }

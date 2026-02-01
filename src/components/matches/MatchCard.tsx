@@ -5,27 +5,15 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { MessageCircle, Building2, UserRound, Calendar } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { he } from "date-fns/locale";
+import { Match } from "@/types";
 
 interface MatchCardProps {
-  match: {
-    id: string;
-    created_at: string;
-    is_closed: boolean;
-    other_profile: {
-      id: string;
-      name: string;
-      avatar_url: string | null;
-      role: string;
-      position?: string | null;
-      required_position?: string | null;
-      city?: string | null;
-    };
-  };
+  match: Match;
 }
 
 export function MatchCard({ match }: MatchCardProps) {
-  const { other_profile } = match;
-  const isClinic = other_profile.role === "clinic";
+  const { otherProfile } = match;
+  const isClinic = otherProfile.role === "clinic";
   const RoleIcon = isClinic ? Building2 : UserRound;
 
   return (
@@ -33,7 +21,7 @@ export function MatchCard({ match }: MatchCardProps) {
       <Card className="p-4 hover:bg-accent/50 transition-colors cursor-pointer">
         <div className="flex items-center gap-4">
           <Avatar className="w-14 h-14">
-            <AvatarImage src={other_profile.avatar_url || undefined} />
+            <AvatarImage src={otherProfile.imageUrl || undefined} />
             <AvatarFallback className="bg-primary/10">
               <RoleIcon className="w-6 h-6 text-primary" />
             </AvatarFallback>
@@ -42,7 +30,7 @@ export function MatchCard({ match }: MatchCardProps) {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <h3 className="font-semibold text-foreground truncate">
-                {other_profile.name}
+                {otherProfile.name}
               </h3>
               <Badge variant={isClinic ? "default" : "secondary"} className="text-xs">
                 {isClinic ? "מרפאה" : "עובד/ת"}
@@ -50,14 +38,14 @@ export function MatchCard({ match }: MatchCardProps) {
             </div>
 
             <p className="text-sm text-muted-foreground truncate">
-              {isClinic ? other_profile.required_position : other_profile.position}
-              {other_profile.city && ` • ${other_profile.city}`}
+              {otherProfile.position}
+              {otherProfile.location && ` • ${otherProfile.location}`}
             </p>
 
             <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
               <Calendar className="w-3 h-3" />
               <span>
-                התאמה {formatDistanceToNow(new Date(match.created_at), { 
+                התאמה {formatDistanceToNow(new Date(match.createdAt), { 
                   addSuffix: true, 
                   locale: he 
                 })}

@@ -19,7 +19,8 @@ export default function ChatList() {
     );
   }
 
-  const activeMatches = matches?.filter((m) => !m.is_closed) || [];
+  // Only show active matches - users can only chat with matched users
+  const activeMatches = matches.filter((m) => !m.isClosed);
 
   return (
     <AppLayout>
@@ -43,8 +44,8 @@ export default function ChatList() {
         ) : (
           <div className="space-y-2">
             {activeMatches.map((match, index) => {
-              const { other_profile } = match;
-              const isClinic = other_profile.role === "clinic";
+              const { otherProfile } = match;
+              const isClinic = otherProfile.role === "clinic";
               const RoleIcon = isClinic ? Building2 : UserRound;
 
               return (
@@ -58,7 +59,7 @@ export default function ChatList() {
                     <Card className="p-4 hover:bg-accent/50 transition-colors cursor-pointer">
                       <div className="flex items-center gap-4">
                         <Avatar className="w-12 h-12">
-                          <AvatarImage src={other_profile.avatar_url || undefined} />
+                          <AvatarImage src={otherProfile.imageUrl || undefined} />
                           <AvatarFallback>
                             <RoleIcon className="w-6 h-6 text-primary" />
                           </AvatarFallback>
@@ -66,10 +67,10 @@ export default function ChatList() {
 
                         <div className="flex-1 min-w-0">
                           <h3 className="font-semibold truncate">
-                            {other_profile.name}
+                            {otherProfile.name}
                           </h3>
                           <p className="text-sm text-muted-foreground truncate">
-                            {isClinic ? other_profile.required_position : other_profile.position}
+                            {otherProfile.position}
                           </p>
                         </div>
 

@@ -10,7 +10,7 @@ import { Loader2, LogOut, Edit2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function Profile() {
-  const { signOut } = useAuth();
+  const { signOut, refreshCurrentUser } = useAuth();
   const { data: profile, isLoading } = useProfile();
   const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
@@ -19,6 +19,12 @@ export default function Profile() {
     await signOut();
     toast.success("להתראות!");
     navigate("/login");
+  };
+
+  const handleProfileSuccess = async () => {
+    setIsEditing(false);
+    // Refresh the current user context after profile changes
+    await refreshCurrentUser();
   };
 
   if (isLoading) {
@@ -40,7 +46,7 @@ export default function Profile() {
           <p className="text-muted-foreground mb-6">
             מלא את הפרטים כדי להתחיל למצוא התאמות
           </p>
-          <ProfileForm onSuccess={() => setIsEditing(false)} />
+          <ProfileForm onSuccess={handleProfileSuccess} />
         </div>
       </AppLayout>
     );
@@ -59,7 +65,7 @@ export default function Profile() {
           </div>
           <ProfileForm 
             initialData={profile} 
-            onSuccess={() => setIsEditing(false)} 
+            onSuccess={handleProfileSuccess} 
           />
         </div>
       </AppLayout>
