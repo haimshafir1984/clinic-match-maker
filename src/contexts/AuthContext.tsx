@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { CurrentUser, UserRole } from "@/types";
+import { CurrentUser } from "@/types";
 import { 
   login as apiLogin, 
   createProfile, 
@@ -36,12 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Check if user is logged in on mount
-    const token = localStorage.getItem("auth_token");
-    if (token) {
-      fetchCurrentUser().finally(() => setLoading(false));
-    } else {
-      setLoading(false);
-    }
+    fetchCurrentUser().finally(() => setLoading(false));
   }, []);
 
   const signUp = async (data: ProfileCreateData) => {
