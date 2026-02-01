@@ -54,14 +54,15 @@ export function SwipeCard({ profile, direction, onSwipeLeft, onSwipeRight }: Swi
   const isClinic = profile.role === "clinic";
   const RoleIcon = isClinic ? Building2 : UserRound;
 
-  // Format availability
-  const availabilityDays = profile.availability.days
-    .map((day) => dayLabels[day] || day)
-    .join(" ");
+  // Format availability - handle null/undefined
+  const availabilityDays = profile.availability?.days
+    ?.map((day) => dayLabels[day] || day)
+    .join(" ") || "";
 
-  // Format salary
+  // Format salary - handle null/undefined
   const formatSalary = () => {
-    const { min, max } = profile.salaryRange;
+    const min = profile.salaryRange?.min;
+    const max = profile.salaryRange?.max;
     if (min && max) {
       return `₪${min.toLocaleString()} - ₪${max.toLocaleString()}`;
     }
@@ -157,7 +158,7 @@ export function SwipeCard({ profile, direction, onSwipeLeft, onSwipeRight }: Swi
             )}
 
             {/* 2. Availability - Bold & Prominent */}
-            {(profile.availability.days.length > 0 || profile.availability.startDate) && (
+            {((profile.availability?.days && profile.availability.days.length > 0) || profile.availability?.startDate) && (
               <div className="flex items-center gap-2 p-3 rounded-xl bg-primary/10 border border-primary/20">
                 <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
                   <Calendar className="w-5 h-5 text-primary" />
@@ -165,14 +166,14 @@ export function SwipeCard({ profile, direction, onSwipeLeft, onSwipeRight }: Swi
                 <div className="flex-1">
                   <p className="text-xs text-muted-foreground">זמינות</p>
                   <p className="font-bold text-foreground">
-                    {profile.availability.startDate 
+                    {profile.availability?.startDate 
                       ? new Date(profile.availability.startDate).toLocaleDateString("he-IL", {
                           day: "numeric",
                           month: "short",
                         })
                       : availabilityDays}
                   </p>
-                  {profile.availability.hours && (
+                  {profile.availability?.hours && (
                     <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                       <Clock className="w-3 h-3" />
                       {profile.availability.hours}
