@@ -13,11 +13,15 @@ export function useSwipeProfiles() {
       return getFeed(currentUser);
     },
     enabled: !!currentUser?.profileId,
+    retry: 2,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 10000),
   });
 
   return {
     profiles: query.data || [],
     isLoading: query.isLoading,
+    isError: query.isError,
+    error: query.error,
     refetch: query.refetch,
   };
 }

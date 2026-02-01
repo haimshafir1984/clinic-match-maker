@@ -13,7 +13,7 @@ import { toast } from "sonner";
 
 export default function Swipe() {
   const navigate = useNavigate();
-  const { profiles, isLoading, refetch } = useSwipeProfiles();
+  const { profiles, isLoading, isError, error, refetch } = useSwipeProfiles();
   const { like, pass, isLoading: isSwipeLoading } = useSwipe();
   
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -87,6 +87,30 @@ export default function Swipe() {
           <div className="flex flex-col items-center gap-4">
             <Loader2 className="w-8 h-8 animate-spin text-primary" />
             <p className="text-muted-foreground">מחפש פרופילים...</p>
+          </div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (isError) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center h-[80vh]">
+          <div className="flex flex-col items-center gap-4 text-center px-4">
+            <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
+              <Loader2 className="w-8 h-8 text-destructive" />
+            </div>
+            <h2 className="text-xl font-semibold text-foreground">שגיאה בטעינת הפרופילים</h2>
+            <p className="text-muted-foreground max-w-sm">
+              {error instanceof Error ? error.message : "לא הצלחנו לטעון את הפרופילים. נסה שוב."}
+            </p>
+            <button
+              onClick={() => refetch()}
+              className="px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              נסה שוב
+            </button>
           </div>
         </div>
       </AppLayout>

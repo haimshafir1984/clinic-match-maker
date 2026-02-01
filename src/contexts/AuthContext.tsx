@@ -1,12 +1,18 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { CurrentUser, UserRole } from "@/types";
-import { login as apiLogin, register as apiRegister, getCurrentUser, logout as apiLogout } from "@/lib/api";
+import { 
+  login as apiLogin, 
+  createProfile, 
+  getCurrentUser, 
+  logout as apiLogout,
+  ProfileCreateData 
+} from "@/lib/api";
 
 interface AuthContextType {
   user: CurrentUser | null;
   currentUser: CurrentUser | null;
   loading: boolean;
-  signUp: (email: string, password: string, role: UserRole, name: string) => Promise<{ error: Error | null }>;
+  signUp: (data: ProfileCreateData) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   refreshCurrentUser: () => Promise<void>;
@@ -38,8 +44,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const signUp = async (email: string, password: string, role: UserRole, name: string) => {
-    const { user: newUser, error } = await apiRegister(email, password, role, name);
+  const signUp = async (data: ProfileCreateData) => {
+    const { user: newUser, error } = await createProfile(data);
     
     if (error) {
       return { error: new Error(error) };
