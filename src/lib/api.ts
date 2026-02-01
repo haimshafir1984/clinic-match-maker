@@ -6,6 +6,7 @@ import {
   SwipeRequest, 
   SwipeResponse, 
   Match, 
+  Message,
   CurrentUser,
   UserRole,
   AuthResponse
@@ -141,6 +142,44 @@ export async function postSwipe(request: SwipeRequest): Promise<SwipeResponse> {
   }
 }
 
+// Backend match response structure
+interface BackendMatch {
+  id: string;
+  created_at: string;
+  is_closed: boolean;
+  other_profile: {
+    id: string;
+    name: string;
+    position?: string | null;
+    image_url?: string | null;
+    role?: string;
+    location?: string | null;
+  };
+}
+
+// Transform backend match to frontend Match
+function transformToMatch(match: BackendMatch): Match {
+  return {
+    id: match.id,
+    createdAt: match.created_at,
+    isClosed: match.is_closed,
+    otherProfile: {
+      id: match.other_profile.id,
+      name: match.other_profile.name,
+      position: match.other_profile.position || null,
+      location: match.other_profile.location || null,
+      availability: { days: [], hours: null, startDate: null },
+      salaryRange: { min: null, max: null },
+      experienceYears: null,
+      imageUrl: match.other_profile.image_url || null,
+      role: (match.other_profile.role?.toLowerCase() as "clinic" | "worker") || "worker",
+      description: null,
+      jobType: null,
+      radiusKm: null,
+    },
+  };
+}
+
 // GET /api/matches/{userId} - Get all matches for current user
 export async function getMatches(currentUser: CurrentUser): Promise<Match[]> {
   if (!currentUser.profileId) {
@@ -148,16 +187,38 @@ export async function getMatches(currentUser: CurrentUser): Promise<Match[]> {
   }
 
   try {
-    const response = await apiCall<{ matches: Match[] } | Match[]>(
+    const response = await apiCall<{ matches: BackendMatch[] } | BackendMatch[]>(
       `/matches/${currentUser.profileId}`
     );
     
-    if (Array.isArray(response)) {
-      return response;
-    }
-    return response.matches || [];
+    const matches = Array.isArray(response) ? response : (response.matches || []);
+    return matches.map(transformToMatch);
   } catch (error) {
     console.error("Error fetching matches:", error);
+    throw error;
+  }
+}
+
+// GET /api/matches/{userId}/{matchId} - Get single match details
+export async function getMatchDetails(userId: string, matchId: string): Promise<Match | null> {
+  try {
+    const response = await apiCall<BackendMatch>(`/matches/${userId}/${matchId}`);
+    return transformToMatch(response);
+  } catch (error) {
+    console.error("Error fetching match details:", error);
+    return null;
+  }
+}
+
+// POST /api/matches/{matchId}/close - Close a match
+export async function closeMatch(matchId: string, userId: string): Promise<void> {
+  try {
+    await apiCall(`/matches/${matchId}/close`, {
+      method: "POST",
+      body: JSON.stringify({ user_id: userId }),
+    });
+  } catch (error) {
+    console.error("Error closing match:", error);
     throw error;
   }
 }
@@ -279,17 +340,35 @@ export async function logout(): Promise<void> {
   localStorage.removeItem("current_user");
 }
 
+// Backend message structure
+interface BackendMessage {
+  id: string;
+  match_id: string;
+  sender_id: string;
+  content: string;
+  created_at: string;
+}
+
+// Transform to frontend Message
+function transformToMessage(msg: BackendMessage): Message {
+  return {
+    id: msg.id,
+    matchId: msg.match_id,
+    senderId: msg.sender_id,
+    content: msg.content,
+    createdAt: msg.created_at,
+  };
+}
+
 // GET /api/messages/{matchId} - Get messages for a match
-export async function getMessages(matchId: string): Promise<any[]> {
+export async function getMessages(matchId: string): Promise<Message[]> {
   try {
-    const response = await apiCall<{ messages: any[] } | any[]>(
+    const response = await apiCall<{ messages: BackendMessage[] } | BackendMessage[]>(
       `/messages/${matchId}`
     );
     
-    if (Array.isArray(response)) {
-      return response;
-    }
-    return response.messages || [];
+    const messages = Array.isArray(response) ? response : (response.messages || []);
+    return messages.map(transformToMessage);
   } catch (error) {
     console.error("Error fetching messages:", error);
     return [];
@@ -301,13 +380,13 @@ export async function sendMessage(
   matchId: string, 
   senderId: string, 
   content: string
-): Promise<any> {
+): Promise<Message> {
   try {
-    const response = await apiCall<any>("/messages", {
+    const response = await apiCall<BackendMessage>("/messages", {
       method: "POST",
       body: JSON.stringify({ match_id: matchId, sender_id: senderId, content }),
     });
-    return response;
+    return transformToMessage(response);
   } catch (error) {
     console.error("Error sending message:", error);
     throw error;
