@@ -1,56 +1,83 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { SwipeCard } from "@/components/swipe/SwipeCard";
 import { SwipeActions } from "@/components/swipe/SwipeActions";
 import { EmptyState } from "@/components/swipe/EmptyState";
-import { useSwipeProfiles } from "@/hooks/useSwipeProfiles";
-import { useLike } from "@/hooks/useLike";
+import { MatchCelebration } from "@/components/swipe/MatchCelebration";
+import { useSwipeProfiles, useSwipe } from "@/hooks/useSwipeProfiles";
+import { MatchCardData } from "@/types";
 import { Loader2 } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 
 export default function Swipe() {
+  const navigate = useNavigate();
   const { profiles, isLoading, refetch } = useSwipeProfiles();
-  const { like, pass, isLiking } = useLike();
+  const { like, pass, isLoading: isSwipeLoading } = useSwipe();
+  
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState<"left" | "right" | null>(null);
+  const [showMatchCelebration, setShowMatchCelebration] = useState(false);
+  const [matchedProfile, setMatchedProfile] = useState<MatchCardData | null>(null);
+  const [lastMatchId, setLastMatchId] = useState<string | null>(null);
 
-  const currentProfile = profiles?.[currentIndex];
-  const hasMoreProfiles = profiles && currentIndex < profiles.length;
+  const currentProfile = profiles[currentIndex];
+  const hasMoreProfiles = currentIndex < profiles.length;
 
   const handleLike = async () => {
-    if (!currentProfile || isLiking) return;
+    if (!currentProfile || isSwipeLoading) return;
     
     setDirection("right");
-    const isMatch = await like(currentProfile.id);
     
-    setTimeout(() => {
-      setDirection(null);
-      setCurrentIndex((prev) => prev + 1);
+    try {
+      const result = await like(currentProfile.id);
       
-      if (isMatch) {
-        toast.success("🎉 יש התאמה!", {
-          description: `התאמת עם ${currentProfile.name}!`,
-        });
-      }
-    }, 300);
+      setTimeout(() => {
+        setDirection(null);
+        setCurrentIndex((prev) => prev + 1);
+        
+        if (result.isMatch) {
+          // Show Match Celebration overlay
+          setMatchedProfile(currentProfile);
+          setLastMatchId(result.matchId || null);
+          setShowMatchCelebration(true);
+        }
+      }, 300);
+    } catch (error) {
+      toast.error("שגיאה בשליחת הלייק");
+      setDirection(null);
+    }
   };
 
   const handlePass = async () => {
-    if (!currentProfile || isLiking) return;
+    if (!currentProfile || isSwipeLoading) return;
     
     setDirection("left");
-    await pass(currentProfile.id);
     
-    setTimeout(() => {
+    try {
+      await pass(currentProfile.id);
+      
+      setTimeout(() => {
+        setDirection(null);
+        setCurrentIndex((prev) => prev + 1);
+      }, 300);
+    } catch (error) {
+      toast.error("שגיאה");
       setDirection(null);
-      setCurrentIndex((prev) => prev + 1);
-    }, 300);
+    }
   };
 
   const handleRefresh = () => {
     setCurrentIndex(0);
     refetch();
+  };
+
+  const handleChatWithMatch = () => {
+    setShowMatchCelebration(false);
+    if (lastMatchId) {
+      navigate(`/chat/${lastMatchId}`);
+    }
   };
 
   if (isLoading) {
@@ -99,10 +126,18 @@ export default function Swipe() {
           <SwipeActions
             onPass={handlePass}
             onLike={handleLike}
-            disabled={isLiking}
+            disabled={isSwipeLoading}
           />
         )}
       </div>
+
+      {/* Match Celebration Overlay */}
+      <MatchCelebration
+        isOpen={showMatchCelebration}
+        matchedProfile={matchedProfile}
+        onClose={() => setShowMatchCelebration(false)}
+        onChat={handleChatWithMatch}
+      />
     </AppLayout>
   );
 }

@@ -1,13 +1,11 @@
 import { motion, useMotionValue, useTransform, PanInfo } from "framer-motion";
-import { Tables } from "@/integrations/supabase/types";
+import { MatchCardData } from "@/types";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Briefcase, Calendar, MapPin, Banknote, Clock, Building2, UserRound } from "lucide-react";
-
-type Profile = Tables<"profiles">;
+import { Briefcase, Calendar, Banknote, MapPin, Clock, Building2, UserRound, Star } from "lucide-react";
 
 interface SwipeCardProps {
-  profile: Profile;
+  profile: MatchCardData;
   direction: "left" | "right" | null;
   onSwipeLeft: () => void;
   onSwipeRight: () => void;
@@ -20,13 +18,13 @@ const jobTypeLabels: Record<string, string> = {
 };
 
 const dayLabels: Record<string, string> = {
-  sunday: "ראשון",
-  monday: "שני",
-  tuesday: "שלישי",
-  wednesday: "רביעי",
-  thursday: "חמישי",
-  friday: "שישי",
-  saturday: "שבת",
+  sunday: "א׳",
+  monday: "ב׳",
+  tuesday: "ג׳",
+  wednesday: "ד׳",
+  thursday: "ה׳",
+  friday: "ו׳",
+  saturday: "ש׳",
 };
 
 export function SwipeCard({ profile, direction, onSwipeLeft, onSwipeRight }: SwipeCardProps) {
@@ -56,10 +54,23 @@ export function SwipeCard({ profile, direction, onSwipeLeft, onSwipeRight }: Swi
   const isClinic = profile.role === "clinic";
   const RoleIcon = isClinic ? Building2 : UserRound;
 
-  // Format availability days
-  const availabilityDays = profile.availability_days
-    ?.map((day) => dayLabels[day] || day)
-    .join(", ");
+  // Format availability
+  const availabilityDays = profile.availability.days
+    .map((day) => dayLabels[day] || day)
+    .join(" ");
+
+  // Format salary
+  const formatSalary = () => {
+    const { min, max } = profile.salaryRange;
+    if (min && max) {
+      return `₪${min.toLocaleString()} - ₪${max.toLocaleString()}`;
+    }
+    if (min) return `מ-₪${min.toLocaleString()}`;
+    if (max) return `עד ₪${max.toLocaleString()}`;
+    return null;
+  };
+
+  const salary = formatSalary();
 
   return (
     <motion.div
@@ -89,97 +100,100 @@ export function SwipeCard({ profile, direction, onSwipeLeft, onSwipeRight }: Swi
         דלג ✕
       </motion.div>
 
-      <Card className="h-full overflow-hidden border-0 shadow-2xl">
+      <Card className="h-full overflow-hidden border-0 shadow-2xl flex flex-col">
         {/* Avatar / Image */}
-        <div className="relative h-48 bg-gradient-to-br from-primary/20 via-accent to-primary/10 flex items-center justify-center">
-          {profile.avatar_url ? (
+        <div className="relative h-40 bg-gradient-to-br from-primary/20 via-accent to-primary/10 flex items-center justify-center flex-shrink-0">
+          {profile.imageUrl ? (
             <img
-              src={profile.avatar_url}
+              src={profile.imageUrl}
               alt={profile.name}
               className="w-full h-full object-cover"
             />
           ) : (
-            <div className="w-24 h-24 rounded-full bg-primary/20 flex items-center justify-center">
-              <RoleIcon className="w-12 h-12 text-primary" />
+            <div className="w-20 h-20 rounded-full bg-primary/20 flex items-center justify-center">
+              <RoleIcon className="w-10 h-10 text-primary" />
             </div>
           )}
           
           {/* Role Badge */}
           <Badge 
-            className="absolute top-4 right-4"
+            className="absolute top-3 right-3"
             variant={isClinic ? "default" : "secondary"}
           >
             {isClinic ? "מרפאה" : "עובד/ת"}
           </Badge>
+
+          {/* Experience Badge - for workers */}
+          {!isClinic && profile.experienceYears && profile.experienceYears > 0 && (
+            <Badge 
+              variant="outline"
+              className="absolute top-3 left-3 bg-background/80 backdrop-blur-sm"
+            >
+              <Star className="w-3 h-3 ml-1" />
+              {profile.experienceYears} שנים
+            </Badge>
+          )}
         </div>
 
         {/* Content */}
-        <div className="p-5 space-y-4">
-          {/* Name & Position */}
-          <div>
-            <h2 className="text-2xl font-bold text-foreground">{profile.name}</h2>
-            {(profile.position || profile.required_position) && (
-              <div className="flex items-center gap-2 text-muted-foreground mt-1">
-                <Briefcase className="w-4 h-4" />
-                <span>{isClinic ? profile.required_position : profile.position}</span>
-              </div>
-            )}
-          </div>
+        <div className="p-4 flex-1 flex flex-col">
+          {/* Name */}
+          <h2 className="text-xl font-bold text-foreground mb-3">{profile.name}</h2>
 
-          {/* Key Highlights - 3 Main Points */}
-          <div className="grid gap-3">
-            {/* Location */}
-            {(profile.city || profile.preferred_area) && (
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50">
-                <MapPin className="w-5 h-5 text-primary" />
+          {/* === KEY HIGHLIGHTS - Position, Availability, Salary === */}
+          {/* These are the 3 most important details, displayed prominently */}
+          <div className="space-y-2 mb-4">
+            {/* 1. Position - Bold & Prominent */}
+            {profile.position && (
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-primary/10 border border-primary/20">
+                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                  <Briefcase className="w-5 h-5 text-primary" />
+                </div>
                 <div>
-                  <p className="text-sm font-medium">
-                    {profile.city || profile.preferred_area}
-                  </p>
-                  {profile.radius_km && (
-                    <p className="text-xs text-muted-foreground">
-                      רדיוס {profile.radius_km} ק"מ
-                    </p>
-                  )}
+                  <p className="text-xs text-muted-foreground">תפקיד</p>
+                  <p className="font-bold text-foreground">{profile.position}</p>
                 </div>
               </div>
             )}
 
-            {/* Availability */}
-            {(profile.availability_date || availabilityDays) && (
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50">
-                <Calendar className="w-5 h-5 text-primary" />
-                <div>
-                  <p className="text-sm font-medium">
-                    {profile.availability_date 
-                      ? new Date(profile.availability_date).toLocaleDateString("he-IL")
+            {/* 2. Availability - Bold & Prominent */}
+            {(profile.availability.days.length > 0 || profile.availability.startDate) && (
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-primary/10 border border-primary/20">
+                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                  <Calendar className="w-5 h-5 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs text-muted-foreground">זמינות</p>
+                  <p className="font-bold text-foreground">
+                    {profile.availability.startDate 
+                      ? new Date(profile.availability.startDate).toLocaleDateString("he-IL", {
+                          day: "numeric",
+                          month: "short",
+                        })
                       : availabilityDays}
                   </p>
-                  {profile.availability_hours && (
-                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  {profile.availability.hours && (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                       <Clock className="w-3 h-3" />
-                      {profile.availability_hours}
+                      {profile.availability.hours}
                     </p>
                   )}
                 </div>
               </div>
             )}
 
-            {/* Salary */}
-            {(profile.salary_min || profile.salary_max) && (
-              <div className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50">
-                <Banknote className="w-5 h-5 text-primary" />
+            {/* 3. Salary - Bold & Prominent */}
+            {salary && (
+              <div className="flex items-center gap-2 p-3 rounded-xl bg-primary/10 border border-primary/20">
+                <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                  <Banknote className="w-5 h-5 text-primary" />
+                </div>
                 <div>
-                  <p className="text-sm font-medium">
-                    {profile.salary_min && profile.salary_max
-                      ? `₪${profile.salary_min.toLocaleString()} - ₪${profile.salary_max.toLocaleString()}`
-                      : profile.salary_min
-                      ? `מ-₪${profile.salary_min.toLocaleString()}`
-                      : `עד ₪${profile.salary_max?.toLocaleString()}`}
-                  </p>
-                  {profile.job_type && (
+                  <p className="text-xs text-muted-foreground">שכר</p>
+                  <p className="font-bold text-foreground">{salary}</p>
+                  {profile.jobType && (
                     <p className="text-xs text-muted-foreground">
-                      {jobTypeLabels[profile.job_type]}
+                      {jobTypeLabels[profile.jobType]}
                     </p>
                   )}
                 </div>
@@ -187,19 +201,26 @@ export function SwipeCard({ profile, direction, onSwipeLeft, onSwipeRight }: Swi
             )}
           </div>
 
-          {/* Description */}
-          {profile.description && (
-            <p className="text-sm text-muted-foreground line-clamp-3">
-              {profile.description}
-            </p>
-          )}
+          {/* Secondary info */}
+          <div className="mt-auto space-y-2">
+            {/* Location */}
+            {profile.location && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <MapPin className="w-4 h-4" />
+                <span>{profile.location}</span>
+                {profile.radiusKm && (
+                  <span className="text-xs">({profile.radiusKm} ק"מ)</span>
+                )}
+              </div>
+            )}
 
-          {/* Experience */}
-          {profile.experience_years && profile.experience_years > 0 && (
-            <Badge variant="outline" className="text-xs">
-              {profile.experience_years} שנות ניסיון
-            </Badge>
-          )}
+            {/* Description */}
+            {profile.description && (
+              <p className="text-sm text-muted-foreground line-clamp-2">
+                {profile.description}
+              </p>
+            )}
+          </div>
         </div>
       </Card>
     </motion.div>

@@ -17,8 +17,8 @@ export default function Matches() {
     );
   }
 
-  const activeMatches = matches?.filter((m) => !m.is_closed) || [];
-  const closedMatches = matches?.filter((m) => m.is_closed) || [];
+  const activeMatches = matches.filter((m) => !m.isClosed);
+  const closedMatches = matches.filter((m) => m.isClosed);
 
   return (
     <AppLayout>
