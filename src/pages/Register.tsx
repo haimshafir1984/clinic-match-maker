@@ -6,26 +6,32 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Loader2, Heart, Stethoscope, Building2, UserRound } from "lucide-react";
+import { Loader2, Heart, Stethoscope, Building2, UserRound, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
-type UserRole = "clinic" | "worker";
+type UserRole = "CLINIC" | "STAFF";
 
 export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [name, setName] = useState("");
+  const [position, setPosition] = useState("");
+  const [location, setLocation] = useState("");
   const [role, setRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(false);
+  const [networkError, setNetworkError] = useState<string | null>(null);
   const { signUp } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setNetworkError(null);
     
-    if (!email || !password || !confirmPassword) {
-      toast.error("נא למלא את כל השדות");
+    if (!email || !password || !confirmPassword || !name) {
+      toast.error("נא למלא את כל השדות החובה");
       return;
     }
 
@@ -45,16 +51,32 @@ export default function Register() {
     }
 
     setLoading(true);
-    const { error } = await signUp(email, password, role, email.split("@")[0]);
-    setLoading(false);
-
-    if (error) {
-      toast.error("שגיאה בהרשמה", {
-        description: error.message,
+    
+    try {
+      const { error } = await signUp({
+        email,
+        role,
+        name,
+        position: position || undefined,
+        location: location || undefined,
       });
-    } else {
-      toast.success("נרשמת בהצלחה!");
-      navigate("/swipe");
+
+      if (error) {
+        if (error.message.includes("לא מגיב") || error.message.includes("תקשורת")) {
+          setNetworkError(error.message);
+        } else {
+          toast.error("שגיאה בהרשמה", {
+            description: error.message,
+          });
+        }
+      } else {
+        toast.success("נרשמת בהצלחה!");
+        navigate("/swipe");
+      }
+    } catch (error) {
+      setNetworkError("שגיאה בתקשורת עם השרת. נסה שוב.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -82,19 +104,29 @@ export default function Register() {
             <CardTitle className="text-2xl">הרשמה</CardTitle>
             <CardDescription>צור חשבון חדש והתחל להתאים</CardDescription>
           </CardHeader>
+          
+          {networkError && (
+            <div className="px-6">
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{networkError}</AlertDescription>
+              </Alert>
+            </div>
+          )}
+          
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
               {/* Role Selection */}
               <div className="space-y-2">
-                <Label>סוג משתמש</Label>
+                <Label>סוג משתמש *</Label>
                 <div className="grid grid-cols-2 gap-3">
                   <motion.button
                     type="button"
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => setRole("clinic")}
+                    onClick={() => setRole("CLINIC")}
                     className={cn(
                       "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all",
-                      role === "clinic"
+                      role === "CLINIC"
                         ? "border-primary bg-primary/5 text-primary"
                         : "border-border hover:border-primary/50"
                     )}
@@ -106,10 +138,10 @@ export default function Register() {
                   <motion.button
                     type="button"
                     whileTap={{ scale: 0.98 }}
-                    onClick={() => setRole("worker")}
+                    onClick={() => setRole("STAFF")}
                     className={cn(
                       "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all",
-                      role === "worker"
+                      role === "STAFF"
                         ? "border-primary bg-primary/5 text-primary"
                         : "border-border hover:border-primary/50"
                     )}
@@ -122,7 +154,20 @@ export default function Register() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="email">אימייל</Label>
+                <Label htmlFor="name">שם מלא *</Label>
+                <Input
+                  id="name"
+                  type="text"
+                  placeholder="שם מלא"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="text-right"
+                  dir="rtl"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="email">אימייל *</Label>
                 <Input
                   id="email"
                   type="email"
@@ -133,8 +178,35 @@ export default function Register() {
                   autoComplete="email"
                 />
               </div>
+
               <div className="space-y-2">
-                <Label htmlFor="password">סיסמה</Label>
+                <Label htmlFor="position">תפקיד</Label>
+                <Input
+                  id="position"
+                  type="text"
+                  placeholder={role === "CLINIC" ? "התפקיד המבוקש" : "התפקיד שלך"}
+                  value={position}
+                  onChange={(e) => setPosition(e.target.value)}
+                  className="text-right"
+                  dir="rtl"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="location">מיקום</Label>
+                <Input
+                  id="location"
+                  type="text"
+                  placeholder="עיר / אזור"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  className="text-right"
+                  dir="rtl"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="password">סיסמה *</Label>
                 <Input
                   id="password"
                   type="password"
@@ -145,8 +217,9 @@ export default function Register() {
                   autoComplete="new-password"
                 />
               </div>
+              
               <div className="space-y-2">
-                <Label htmlFor="confirmPassword">אימות סיסמה</Label>
+                <Label htmlFor="confirmPassword">אימות סיסמה *</Label>
                 <Input
                   id="confirmPassword"
                   type="password"

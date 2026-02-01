@@ -5,14 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { toast } from "sonner";
-import { Loader2, Heart, Stethoscope } from "lucide-react";
+import { Loader2, Heart, Stethoscope, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [networkError, setNetworkError] = useState<string | null>(null);
   const { signIn } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -21,6 +23,7 @@ export default function Login() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setNetworkError(null);
     
     if (!email || !password) {
       toast.error("נא למלא את כל השדות");
@@ -28,18 +31,28 @@ export default function Login() {
     }
 
     setLoading(true);
-    const { error } = await signIn(email, password);
-    setLoading(false);
+    
+    try {
+      const { error } = await signIn(email, password);
 
-    if (error) {
-      toast.error("שגיאה בהתחברות", {
-        description: error.message === "Invalid login credentials" 
-          ? "אימייל או סיסמה שגויים" 
-          : error.message,
-      });
-    } else {
-      toast.success("התחברת בהצלחה!");
-      navigate(from, { replace: true });
+      if (error) {
+        if (error.message.includes("לא מגיב") || error.message.includes("תקשורת")) {
+          setNetworkError(error.message);
+        } else {
+          toast.error("שגיאה בהתחברות", {
+            description: error.message === "Invalid login credentials" 
+              ? "אימייל או סיסמה שגויים" 
+              : error.message,
+          });
+        }
+      } else {
+        toast.success("התחברת בהצלחה!");
+        navigate(from, { replace: true });
+      }
+    } catch (error) {
+      setNetworkError("שגיאה בתקשורת עם השרת. נסה שוב.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -68,6 +81,16 @@ export default function Login() {
             <CardTitle className="text-2xl">התחברות</CardTitle>
             <CardDescription>ברוכים הבאים! נא להתחבר לחשבון</CardDescription>
           </CardHeader>
+          
+          {networkError && (
+            <div className="px-6">
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>{networkError}</AlertDescription>
+              </Alert>
+            </div>
+          )}
+          
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
               <div className="space-y-2">
