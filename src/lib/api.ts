@@ -58,6 +58,44 @@ async function apiCall<T>(
   }
 }
 
+// Backend feed profile structure
+interface BackendFeedProfile {
+  id: string;
+  name: string;
+  position?: string | null;
+  location?: string | null;
+  salary_info?: { min?: number; max?: number } | null;
+  availability?: { days?: string[]; hours?: string; start_date?: string } | null;
+  image_url?: string | null;
+  role?: string;
+}
+
+// Transform backend feed profile to MatchCardData
+function transformToMatchCardData(profile: BackendFeedProfile): MatchCardData {
+  return {
+    id: profile.id,
+    name: profile.name,
+    position: profile.position || null,
+    location: profile.location || null,
+    availability: {
+      days: profile.availability?.days || [],
+      hours: profile.availability?.hours || null,
+      startDate: profile.availability?.start_date || null,
+    },
+    salaryRange: {
+      min: profile.salary_info?.min || null,
+      max: profile.salary_info?.max || null,
+    },
+    imageUrl: profile.image_url || null,
+    role: (profile.role?.toLowerCase() as "clinic" | "worker") || "worker",
+    // These fields may not come from backend, set defaults
+    experienceYears: null,
+    description: null,
+    jobType: null,
+    radiusKm: null,
+  };
+}
+
 // GET /api/feed/{userId} - Get profiles for discovery feed
 export async function getFeed(currentUser: CurrentUser): Promise<MatchCardData[]> {
   if (!currentUser.profileId || !currentUser.role) {
@@ -65,15 +103,15 @@ export async function getFeed(currentUser: CurrentUser): Promise<MatchCardData[]
   }
 
   try {
-    const response = await apiCall<{ profiles: MatchCardData[] } | MatchCardData[]>(
+    const response = await apiCall<{ profiles: BackendFeedProfile[] } | BackendFeedProfile[]>(
       `/feed/${currentUser.profileId}`
     );
     
     // Handle both array and object response formats
-    if (Array.isArray(response)) {
-      return response;
-    }
-    return response.profiles || [];
+    const profiles = Array.isArray(response) ? response : (response.profiles || []);
+    
+    // Transform each profile to frontend format
+    return profiles.map(transformToMatchCardData);
   } catch (error) {
     console.error("Error fetching feed:", error);
     throw error;
