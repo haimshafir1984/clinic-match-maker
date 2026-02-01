@@ -12,7 +12,6 @@ import { motion } from "framer-motion";
 
 export default function Login() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [networkError, setNetworkError] = useState<string | null>(null);
   const { signIn } = useAuth();
@@ -25,19 +24,19 @@ export default function Login() {
     e.preventDefault();
     setNetworkError(null);
     
-    if (!email || !password) {
-      toast.error("נא למלא את כל השדות");
+    if (!email) {
+      toast.error("נא להזין אימייל");
       return;
     }
 
     setLoading(true);
     
     try {
-      const { error, needsRegistration } = await signIn(email, password);
+      const { error, needsRegistration } = await signIn(email);
 
       if (error) {
         if (needsRegistration) {
-          toast.info("המשתמש לא נמצא - מעביר להרשמה");
+          toast.info("האימייל לא נמצא, מעביר להרשמה");
           navigate("/register", { state: { email } });
           return;
         }
@@ -108,18 +107,6 @@ export default function Login() {
                   className="text-right"
                   dir="ltr"
                   autoComplete="email"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">סיסמה</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  dir="ltr"
-                  autoComplete="current-password"
                 />
               </div>
             </CardContent>

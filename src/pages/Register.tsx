@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,12 +14,13 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 type UserRole = "CLINIC" | "STAFF";
 
 export default function Register() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const location = useLocation();
+  const initialEmail = (location.state as { email?: string })?.email || "";
+  
+  const [email, setEmail] = useState(initialEmail);
   const [name, setName] = useState("");
   const [position, setPosition] = useState("");
-  const [location, setLocation] = useState("");
+  const [city, setCity] = useState("");
   const [role, setRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(false);
   const [networkError, setNetworkError] = useState<string | null>(null);
@@ -30,23 +31,13 @@ export default function Register() {
     e.preventDefault();
     setNetworkError(null);
     
-    if (!email || !password || !confirmPassword || !name) {
+    if (!email || !name) {
       toast.error("נא למלא את כל השדות החובה");
       return;
     }
 
     if (!role) {
       toast.error("נא לבחור סוג משתמש");
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      toast.error("הסיסמאות אינן תואמות");
-      return;
-    }
-
-    if (password.length < 6) {
-      toast.error("הסיסמה חייבת להכיל לפחות 6 תווים");
       return;
     }
 
@@ -58,7 +49,7 @@ export default function Register() {
         role,
         name,
         position: position || undefined,
-        location: location || undefined,
+        location: city || undefined,
       });
 
       if (error) {
@@ -193,41 +184,15 @@ export default function Register() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="location">מיקום</Label>
+                <Label htmlFor="city">עיר</Label>
                 <Input
-                  id="location"
+                  id="city"
                   type="text"
                   placeholder="עיר / אזור"
-                  value={location}
-                  onChange={(e) => setLocation(e.target.value)}
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
                   className="text-right"
                   dir="rtl"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="password">סיסמה *</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="לפחות 6 תווים"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  dir="ltr"
-                  autoComplete="new-password"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">אימות סיסמה *</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  placeholder="הזן שוב את הסיסמה"
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  dir="ltr"
-                  autoComplete="new-password"
                 />
               </div>
             </CardContent>

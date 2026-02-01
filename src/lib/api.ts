@@ -188,10 +188,9 @@ function transformToCurrentUser(profile: BackendProfile): CurrentUser {
   };
 }
 
-// POST /api/auth/login - Login with email
+// POST /api/auth/login - Login with email only (no password for MVP)
 export async function login(
-  email: string, 
-  _password: string
+  email: string
 ): Promise<{ user: CurrentUser | null; error: string | null; needsRegistration?: boolean }> {
   try {
     const response = await apiCall<{ success: boolean; user: BackendProfile } | BackendProfile>("/auth/login", {
@@ -209,7 +208,7 @@ export async function login(
     if (error instanceof Error) {
       // Check if user not found - needs registration
       if (error.message.includes("404") || error.message.includes("not found") || error.message.includes("לא נמצא")) {
-        return { user: null, error: "המשתמש לא נמצא", needsRegistration: true };
+        return { user: null, error: "האימייל לא נמצא, אנא הירשם", needsRegistration: true };
       }
       return { user: null, error: error.message };
     }
