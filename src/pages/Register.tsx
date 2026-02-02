@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { CityCombobox } from "@/components/ui/city-combobox";
 import { toast } from "sonner";
 import { Loader2, Heart, Stethoscope, Building2, UserRound, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
@@ -228,16 +229,15 @@ export default function Register() {
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="city">עיר</Label>
-                <Input
-                  id="city"
-                  type="text"
-                  placeholder="עיר / אזור"
+                <Label htmlFor="city">עיר *</Label>
+                <CityCombobox
                   value={city}
-                  onChange={(e) => setCity(e.target.value)}
-                  className="text-right"
-                  dir="rtl"
+                  onChange={setCity}
+                  placeholder="בחר עיר"
                 />
+                <p className="text-xs text-muted-foreground">
+                  חשוב לבחור את שם העיר המדויק להתאמה טובה יותר
+                </p>
               </div>
             </CardContent>
             <CardFooter className="flex flex-col gap-4">
