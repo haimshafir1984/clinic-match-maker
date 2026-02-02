@@ -30,6 +30,25 @@ const days = [
   { value: "saturday", label: "שבת" },
 ];
 
+const professionOptions = [
+  "רופא שיניים",
+  "רופא עיניים",
+  "אופטומטריסט",
+  "שיננית",
+  "פלסטיקאי",
+  "רופא מזריק",
+  "קלינאי תקשורת",
+  "מזכירה רפואית",
+];
+
+const businessTypeOptions = [
+  "מרפאת שיניים",
+  "מרפאת עיניים",
+  "מרפאת אסתטיקה",
+  "קלינאי תקשורת",
+  "אחר",
+];
+
 const profileSchema = z.object({
   name: z.string().min(2, "שם חייב להכיל לפחות 2 תווים"),
   role: z.enum(["clinic", "worker"]),
@@ -186,14 +205,45 @@ export function ProfileForm({ initialData, onSuccess }: ProfileFormProps) {
 
           <div className="space-y-2">
             <Label htmlFor={isClinic ? "required_position" : "position"}>
-              {isClinic ? "תפקיד מבוקש" : "תפקיד"}
+              {isClinic ? "איזה תפקיד אתם מגייסים?" : "מה המקצוע שלך?"}
             </Label>
-            <Input
-              id={isClinic ? "required_position" : "position"}
-              {...register(isClinic ? "required_position" : "position")}
-              placeholder={isClinic ? "סייעת לרופא שיניים" : "אח/ות מוסמך/ת"}
-            />
+            <Select
+              value={watch(isClinic ? "required_position" : "position") || ""}
+              onValueChange={(value) => setValue(isClinic ? "required_position" : "position", value)}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder={isClinic ? "בחר תפקיד מבוקש" : "בחר מקצוע"} />
+              </SelectTrigger>
+              <SelectContent>
+                {professionOptions.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
+
+          {isClinic && (
+            <div className="space-y-2">
+              <Label htmlFor="position">סוג העסק</Label>
+              <Select
+                value={watch("position") || ""}
+                onValueChange={(value) => setValue("position", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="בחר סוג עסק" />
+                </SelectTrigger>
+                <SelectContent>
+                  {businessTypeOptions.map((option) => (
+                    <SelectItem key={option} value={option}>
+                      {option}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {!isClinic && (
             <div className="space-y-2">
