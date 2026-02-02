@@ -161,8 +161,20 @@ export async function postSwipe(request: SwipeRequest): Promise<SwipeResponse> {
   }
 }
 
-// Backend match response structure
-interface BackendMatch {
+// Backend match response structure - handles both formats
+interface BackendMatchFlat {
+  match_id: string;
+  profile_id: string;
+  name: string;
+  position?: string | null;
+  location?: string | null;
+  image_url?: string | null;
+  role?: string;
+  is_closed?: boolean;
+  created_at?: string;
+}
+
+interface BackendMatchNested {
   id: string;
   created_at: string;
   is_closed: boolean;
@@ -176,8 +188,40 @@ interface BackendMatch {
   };
 }
 
+type BackendMatch = BackendMatchFlat | BackendMatchNested;
+
+// Check if match is flat format (from /matches/{userId} endpoint)
+function isFlatMatch(match: BackendMatch): match is BackendMatchFlat {
+  return 'match_id' in match && 'profile_id' in match;
+}
+
 // Transform backend match to frontend Match
 function transformToMatch(match: BackendMatch): Match {
+  // Handle flat format: { match_id, profile_id, name, position, location }
+  if (isFlatMatch(match)) {
+    return {
+      id: match.match_id,
+      createdAt: match.created_at || new Date().toISOString(),
+      isClosed: match.is_closed || false,
+      otherProfile: {
+        id: match.profile_id,
+        name: match.name,
+        position: match.position || null,
+        location: match.location || null,
+        availability: { days: [], hours: null, startDate: null },
+        salaryRange: { min: null, max: null },
+        experienceYears: null,
+        imageUrl: match.image_url || null,
+        role: (match.role?.toLowerCase() as "clinic" | "worker") || "worker",
+        description: null,
+        jobType: null,
+        radiusKm: null,
+        createdAt: null,
+      },
+    };
+  }
+  
+  // Handle nested format: { id, other_profile: {...} }
   return {
     id: match.id,
     createdAt: match.created_at,
@@ -207,12 +251,16 @@ export async function getMatches(currentUser: CurrentUser): Promise<Match[]> {
   }
 
   try {
+    console.log("[getMatches] Fetching for profileId:", currentUser.profileId);
     const response = await apiCall<{ matches: BackendMatch[] } | BackendMatch[]>(
       `/matches/${currentUser.profileId}`
     );
     
+    console.log("[getMatches] Raw response:", JSON.stringify(response));
     const matches = Array.isArray(response) ? response : (response.matches || []);
-    return matches.map(transformToMatch);
+    const transformed = matches.map(transformToMatch);
+    console.log("[getMatches] Transformed matches:", transformed.length, "items");
+    return transformed;
   } catch (error) {
     console.error("Error fetching matches:", error);
     throw error;
