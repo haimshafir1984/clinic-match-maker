@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
+import { CityCombobox } from "@/components/ui/city-combobox";
 import { toast } from "sonner";
 import { Loader2, Building2, UserRound } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
@@ -279,13 +280,16 @@ export function ProfileForm({ initialData, onSuccess }: ProfileFormProps) {
           
           <div className="space-y-2">
             <Label htmlFor={isClinic ? "city" : "preferred_area"}>
-              {isClinic ? "עיר" : "אזור מועדף"}
+              {isClinic ? "עיר *" : "עיר מועדפת"}
             </Label>
-            <Input
-              id={isClinic ? "city" : "preferred_area"}
-              {...register(isClinic ? "city" : "preferred_area")}
-              placeholder={isClinic ? "תל אביב" : "מרכז הארץ"}
+            <CityCombobox
+              value={watch(isClinic ? "city" : "preferred_area") || ""}
+              onChange={(value) => setValue(isClinic ? "city" : "preferred_area", value)}
+              placeholder={isClinic ? "בחר עיר" : "בחר עיר מועדפת"}
             />
+            <p className="text-xs text-muted-foreground">
+              חשוב לבחור את שם העיר המדויק להתאמה טובה יותר
+            </p>
           </div>
 
           {isClinic && (

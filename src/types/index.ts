@@ -31,6 +31,7 @@ export interface MatchCardData {
   description: string | null;
   jobType: JobType | null;
   radiusKm: number | null;
+  createdAt: string | null; // For "New" badge
 }
 
 // Current User object

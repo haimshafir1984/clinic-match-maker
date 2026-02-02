@@ -69,6 +69,7 @@ interface BackendFeedProfile {
   availability?: { days?: string[]; hours?: string; start_date?: string } | null;
   image_url?: string | null;
   role?: string;
+  created_at?: string | null;
 }
 
 // Transform backend feed profile to MatchCardData
@@ -94,6 +95,7 @@ function transformToMatchCardData(profile: BackendFeedProfile): MatchCardData {
     description: null,
     jobType: null,
     radiusKm: null,
+    createdAt: profile.created_at || null,
   };
 }
 
@@ -176,6 +178,7 @@ function transformToMatch(match: BackendMatch): Match {
       description: null,
       jobType: null,
       radiusKm: null,
+      createdAt: null,
     },
   };
 }

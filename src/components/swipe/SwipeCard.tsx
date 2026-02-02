@@ -1,14 +1,15 @@
 import { motion, useMotionValue, useTransform, PanInfo } from "framer-motion";
-import { MatchCardData } from "@/types";
+import { MatchCardData, SalaryRange } from "@/types";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Briefcase, Calendar, Banknote, MapPin, Clock, Building2, UserRound, Star } from "lucide-react";
+import { Briefcase, Calendar, Banknote, MapPin, Clock, Building2, UserRound, Star, CheckCircle2, Sparkles } from "lucide-react";
 
 interface SwipeCardProps {
   profile: MatchCardData;
   direction: "left" | "right" | null;
   onSwipeLeft: () => void;
   onSwipeRight: () => void;
+  currentUserSalary?: SalaryRange | null;
 }
 
 const jobTypeLabels: Record<string, string> = {
@@ -27,7 +28,47 @@ const dayLabels: Record<string, string> = {
   saturday: "ש׳",
 };
 
-export function SwipeCard({ profile, direction, onSwipeLeft, onSwipeRight }: SwipeCardProps) {
+// Check if profile was created within last 3 days
+function isNewProfile(createdAt: string | null): boolean {
+  if (!createdAt) return false;
+  const created = new Date(createdAt);
+  const now = new Date();
+  const diffDays = (now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24);
+  return diffDays <= 3;
+}
+
+// Check if salary ranges match (worker's expected vs clinic's offer)
+function checkSalaryMatch(
+  profileSalary: SalaryRange,
+  currentUserSalary: SalaryRange | null | undefined,
+  profileRole: string
+): boolean {
+  if (!currentUserSalary) return false;
+  
+  // If profile is clinic (offering job), compare with worker's expectation
+  // If profile is worker (seeking job), compare with clinic's offer
+  const offerMin = profileRole === "clinic" ? profileSalary.min : currentUserSalary.min;
+  const offerMax = profileRole === "clinic" ? profileSalary.max : currentUserSalary.max;
+  const expectMin = profileRole === "clinic" ? currentUserSalary.min : profileSalary.min;
+  const expectMax = profileRole === "clinic" ? currentUserSalary.max : profileSalary.max;
+  
+  // Match if offer meets or exceeds expectation
+  if (offerMax && expectMin) {
+    return offerMax >= expectMin;
+  }
+  if (offerMin && expectMax) {
+    return offerMin <= expectMax;
+  }
+  return false;
+}
+
+export function SwipeCard({ 
+  profile, 
+  direction, 
+  onSwipeLeft, 
+  onSwipeRight,
+  currentUserSalary 
+}: SwipeCardProps) {
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-15, 15]);
   const likeOpacity = useTransform(x, [0, 100], [0, 1]);
@@ -53,6 +94,10 @@ export function SwipeCard({ profile, direction, onSwipeLeft, onSwipeRight }: Swi
 
   const isClinic = profile.role === "clinic";
   const RoleIcon = isClinic ? Building2 : UserRound;
+  
+  // Smart badges
+  const isNew = isNewProfile(profile.createdAt);
+  const hasSalaryMatch = checkSalaryMatch(profile.salaryRange, currentUserSalary, profile.role);
 
   // Format availability - handle null/undefined
   const availabilityDays = profile.availability?.days
@@ -116,7 +161,30 @@ export function SwipeCard({ profile, direction, onSwipeLeft, onSwipeRight }: Swi
             </div>
           )}
           
-          {/* Role Badge */}
+          {/* Smart Badges - Top Left Corner */}
+          <div className="absolute top-3 left-3 flex flex-col gap-2">
+            {/* New Badge */}
+            {isNew && (
+              <Badge 
+                className="bg-cyan-500 hover:bg-cyan-600 text-white border-0 gap-1"
+              >
+                <Sparkles className="w-3 h-3" />
+                חדש
+              </Badge>
+            )}
+            
+            {/* Salary Match Badge */}
+            {hasSalaryMatch && (
+              <Badge 
+                className="bg-emerald-500 hover:bg-emerald-600 text-white border-0 gap-1"
+              >
+                <CheckCircle2 className="w-3 h-3" />
+                התאמת שכר
+              </Badge>
+            )}
+          </div>
+          
+          {/* Role Badge - Top Right */}
           <Badge 
             className="absolute top-3 right-3"
             variant={isClinic ? "default" : "secondary"}
@@ -124,11 +192,11 @@ export function SwipeCard({ profile, direction, onSwipeLeft, onSwipeRight }: Swi
             {isClinic ? "מרפאה" : "עובד/ת"}
           </Badge>
 
-          {/* Experience Badge - for workers */}
+          {/* Experience Badge - for workers (below role) */}
           {!isClinic && profile.experienceYears && profile.experienceYears > 0 && (
             <Badge 
               variant="outline"
-              className="absolute top-3 left-3 bg-background/80 backdrop-blur-sm"
+              className="absolute top-12 right-3 bg-background/80 backdrop-blur-sm"
             >
               <Star className="w-3 h-3 ml-1" />
               {profile.experienceYears} שנים
@@ -142,7 +210,6 @@ export function SwipeCard({ profile, direction, onSwipeLeft, onSwipeRight }: Swi
           <h2 className="text-xl font-bold text-foreground mb-3">{profile.name}</h2>
 
           {/* === KEY HIGHLIGHTS - Position, Availability, Salary === */}
-          {/* These are the 3 most important details, displayed prominently */}
           <div className="space-y-2 mb-4">
             {/* 1. Position - Bold & Prominent */}
             {profile.position && (

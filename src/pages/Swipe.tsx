@@ -6,6 +6,7 @@ import { SwipeActions } from "@/components/swipe/SwipeActions";
 import { EmptyState } from "@/components/swipe/EmptyState";
 import { MatchCelebration } from "@/components/swipe/MatchCelebration";
 import { useSwipeProfiles, useSwipe } from "@/hooks/useSwipeProfiles";
+import { useAuth } from "@/contexts/AuthContext";
 import { MatchCardData } from "@/types";
 import { Loader2 } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
@@ -13,6 +14,7 @@ import { toast } from "sonner";
 
 export default function Swipe() {
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
   const { profiles, isLoading, isError, error, refetch } = useSwipeProfiles();
   const { like, pass, isLoading: isSwipeLoading } = useSwipe();
   
@@ -159,6 +161,7 @@ export default function Swipe() {
       <MatchCelebration
         isOpen={showMatchCelebration}
         matchedProfile={matchedProfile}
+        currentUser={currentUser}
         onClose={() => setShowMatchCelebration(false)}
         onChat={handleChatWithMatch}
       />
