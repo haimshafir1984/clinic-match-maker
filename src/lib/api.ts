@@ -121,10 +121,18 @@ export async function getFeed(currentUser: CurrentUser): Promise<MatchCardData[]
   }
 }
 
+// Backend swipe response (may use snake_case)
+interface BackendSwipeResponse {
+  is_match?: boolean;
+  isMatch?: boolean;
+  match_id?: string;
+  matchId?: string;
+}
+
 // POST /api/swipe - Record a swipe action
 export async function postSwipe(request: SwipeRequest): Promise<SwipeResponse> {
   try {
-    const response = await apiCall<SwipeResponse>("/swipe", {
+    const response = await apiCall<BackendSwipeResponse>("/swipe", {
       method: "POST",
       body: JSON.stringify({
         swiper_id: request.swiperId,
@@ -133,10 +141,19 @@ export async function postSwipe(request: SwipeRequest): Promise<SwipeResponse> {
       }),
     });
 
+    // Log the raw response to debug matchId extraction
+    console.log("[Swipe API] Raw response:", JSON.stringify(response));
+
+    // Handle both snake_case and camelCase from backend
+    const isMatch = response.isMatch ?? response.is_match ?? false;
+    const matchId = response.matchId ?? response.match_id;
+
+    console.log("[Swipe API] Extracted - isMatch:", isMatch, "matchId:", matchId);
+
     return {
       success: true,
-      isMatch: response.isMatch || false,
-      matchId: response.matchId,
+      isMatch,
+      matchId,
     };
   } catch (error) {
     console.error("Error posting swipe:", error);
