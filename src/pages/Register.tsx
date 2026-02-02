@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Loader2, Heart, Stethoscope, Building2, UserRound, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
@@ -13,6 +14,25 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 
 type UserRole = "CLINIC" | "STAFF";
 
+const professionOptions = [
+  "רופא שיניים",
+  "רופא עיניים",
+  "אופטומטריסט",
+  "שיננית",
+  "פלסטיקאי",
+  "רופא מזריק",
+  "קלינאי תקשורת",
+  "מזכירה רפואית",
+];
+
+const businessTypeOptions = [
+  "מרפאת שיניים",
+  "מרפאת עיניים",
+  "מרפאת אסתטיקה",
+  "קלינאי תקשורת",
+  "אחר",
+];
+
 export default function Register() {
   const location = useLocation();
   const initialEmail = (location.state as { email?: string })?.email || "";
@@ -20,6 +40,7 @@ export default function Register() {
   const [email, setEmail] = useState(initialEmail);
   const [name, setName] = useState("");
   const [position, setPosition] = useState("");
+  const [businessType, setBusinessType] = useState("");
   const [city, setCity] = useState("");
   const [role, setRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(false);
@@ -171,17 +192,40 @@ export default function Register() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="position">תפקיד</Label>
-                <Input
-                  id="position"
-                  type="text"
-                  placeholder={role === "CLINIC" ? "התפקיד המבוקש" : "התפקיד שלך"}
-                  value={position}
-                  onChange={(e) => setPosition(e.target.value)}
-                  className="text-right"
-                  dir="rtl"
-                />
+                <Label>
+                  {role === "CLINIC" ? "איזה תפקיד אתם מגייסים?" : "מה המקצוע שלך?"}
+                </Label>
+                <Select value={position} onValueChange={setPosition}>
+                  <SelectTrigger>
+                    <SelectValue placeholder={role === "CLINIC" ? "בחר תפקיד מבוקש" : "בחר מקצוע"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {professionOptions.map((option) => (
+                      <SelectItem key={option} value={option}>
+                        {option}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
+
+              {role === "CLINIC" && (
+                <div className="space-y-2">
+                  <Label>סוג העסק</Label>
+                  <Select value={businessType} onValueChange={setBusinessType}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="בחר סוג עסק" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {businessTypeOptions.map((option) => (
+                        <SelectItem key={option} value={option}>
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="city">עיר</Label>
