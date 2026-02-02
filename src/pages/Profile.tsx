@@ -82,7 +82,12 @@ export default function Profile() {
             <Button variant="outline" size="icon" onClick={() => setIsEditing(true)}>
               <Edit2 className="w-4 h-4" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={handleSignOut}>
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={handleSignOut}
+              className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+            >
               <LogOut className="w-4 h-4" />
             </Button>
           </div>

@@ -338,9 +338,10 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
   }
 }
 
-// Logout - clear local storage
+// Logout - clear all auth-related local storage
 export async function logout(): Promise<void> {
   localStorage.removeItem("current_user");
+  localStorage.removeItem("auth_token");
 }
 
 // Backend message structure
