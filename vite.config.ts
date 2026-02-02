@@ -17,5 +17,7 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+    // Prevent duplicate React instances that break Radix UI context
+    dedupe: ["react", "react-dom", "react/jsx-runtime"],
   },
 }));
