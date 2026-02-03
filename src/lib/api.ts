@@ -498,8 +498,27 @@ export async function updateProfileApi(
   data: ProfileUpdateData
 ): Promise<{ profile: ReturnType<typeof transformToProfile> | null; error: string | null }> {
   try {
-    // Transform frontend fields to backend format
-    const backendData: Record<string, unknown> = { ...data };
+    // Get email from current user (required by backend)
+    const currentUserData = localStorage.getItem("current_user");
+    let email: string | undefined;
+    if (currentUserData) {
+      try {
+        const parsedUser = JSON.parse(currentUserData);
+        email = parsedUser.email;
+      } catch {
+        // Ignore parse errors
+      }
+    }
+    
+    if (!email) {
+      return { profile: null, error: "Email is required - please login again" };
+    }
+    
+    // Transform frontend fields to backend format - include email
+    const backendData: Record<string, unknown> = { 
+      ...data,
+      email, // Always include email for backend identification
+    };
     
     // Convert salary fields to salary_info if backend expects it
     if (data.salary_min !== undefined || data.salary_max !== undefined) {
