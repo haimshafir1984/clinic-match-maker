@@ -146,7 +146,7 @@ export function SwipeCard({
         דלג ✕
       </motion.div>
 
-      <Card className="h-full overflow-hidden border-0 shadow-2xl flex flex-col">
+      <Card className="h-full overflow-hidden border-0 shadow-2xl rounded-xl flex flex-col">
         {/* Avatar / Image */}
         <div className="relative h-40 bg-gradient-to-br from-primary/20 via-accent to-primary/10 flex items-center justify-center flex-shrink-0">
           {profile.imageUrl ? (

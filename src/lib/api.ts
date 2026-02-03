@@ -302,6 +302,8 @@ interface BackendProfile {
   salary_info?: { min?: number; max?: number } | null;
   availability?: { days?: string[]; hours?: string; start_date?: string } | null;
   created_at?: string;
+  is_admin?: boolean;
+  isAdmin?: boolean;
 }
 
 // Transform backend profile to CurrentUser
@@ -314,6 +316,7 @@ function transformToCurrentUser(profile: BackendProfile): CurrentUser {
     name: profile.name,
     imageUrl: null,
     isProfileComplete: true,
+    isAdmin: profile.is_admin ?? profile.isAdmin ?? false,
   };
 }
 

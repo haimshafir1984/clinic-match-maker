@@ -15,6 +15,7 @@ import Matches from "./pages/Matches";
 import ChatList from "./pages/ChatList";
 import Chat from "./pages/Chat";
 import Profile from "./pages/Profile";
+import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient({
@@ -86,6 +87,16 @@ const App = () => (
                   <ProfileGuard>
                     <Chat />
                   </ProfileGuard>
+                </AuthGuard>
+              }
+            />
+
+            {/* Admin Route */}
+            <Route
+              path="/admin"
+              element={
+                <AuthGuard>
+                  <Admin />
                 </AuthGuard>
               }
             />

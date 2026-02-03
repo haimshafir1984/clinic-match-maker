@@ -50,8 +50,8 @@ export default function Login() {
         }
       } else {
         toast.success("התחברת בהצלחה!");
-        // Profile guard will redirect to profile if not complete
-        navigate("/swipe", { replace: true });
+        // Always redirect to profile first to review details
+        navigate("/profile", { replace: true });
       }
     } catch (error) {
       setNetworkError("שגיאה בתקשורת עם השרת. נסה שוב.");

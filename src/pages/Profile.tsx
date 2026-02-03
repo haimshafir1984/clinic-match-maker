@@ -43,13 +43,27 @@ export default function Profile() {
       if (isComplete) {
         toast.success("הפרופיל הושלם! מעביר אותך להתאמות...");
         setTimeout(() => {
-          navigate(fromLocation || "/swipe", { replace: true });
+          navigate("/swipe", { replace: true });
         }, 1000);
         return;
       }
     }
     
     toast.success("הפרופיל נשמר!");
+  };
+
+  // Handle "Save & Start Matching" button
+  const handleSaveAndStartMatching = async () => {
+    if (profile) {
+      const { isComplete } = calculateProfileCompletion(profile);
+      if (isComplete) {
+        toast.success("יוצאים למצוא התאמות! 🎉");
+        navigate("/swipe");
+      } else {
+        toast.error("נא להשלים את שדות החובה לפני שממשיכים");
+        setIsEditing(true);
+      }
+    }
   };
 
   const handleContinueToMatches = () => {
@@ -59,6 +73,7 @@ export default function Profile() {
         navigate("/swipe");
       } else {
         toast.error("נא להשלים את שדות החובה לפני שממשיכים");
+        setIsEditing(true);
       }
     }
   };
@@ -184,10 +199,21 @@ export default function Profile() {
 
         <ProfileView profile={profile} />
 
-        {/* Sticky CTA */}
+        {/* Sticky CTA - "Save & Start Matching" for new users */}
         <div className="fixed bottom-20 left-0 right-0 p-4 bg-gradient-to-t from-background via-background to-transparent">
           <div className="max-w-md mx-auto">
-            {completion.isComplete ? (
+            {isNewUser || needsCompletion ? (
+              // New user or redirected user - show "Save & Start Matching"
+              <Button
+                onClick={handleSaveAndStartMatching}
+                className="w-full gap-2 shadow-lg"
+                size="lg"
+              >
+                <Sparkles className="w-5 h-5" />
+                שמור והתחל להתאים
+                <ArrowLeft className="w-4 h-4" />
+              </Button>
+            ) : completion.isComplete ? (
               <Button
                 onClick={handleContinueToMatches}
                 className="w-full gap-2"
