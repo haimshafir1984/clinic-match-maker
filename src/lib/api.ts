@@ -492,13 +492,13 @@ export async function getProfile(profileId: string): Promise<ReturnType<typeof t
   }
 }
 
-// PUT /api/profiles/:id - Update profile
+// POST /api/profiles - Update profile (backend uses POST as upsert)
 export async function updateProfileApi(
   profileId: string,
   data: ProfileUpdateData
 ): Promise<{ profile: ReturnType<typeof transformToProfile> | null; error: string | null }> {
   try {
-    // Get email from current user (required by backend)
+    // Get email from current user (required by backend for upsert identification)
     const currentUserData = localStorage.getItem("current_user");
     let email: string | undefined;
     if (currentUserData) {
@@ -514,13 +514,21 @@ export async function updateProfileApi(
       return { profile: null, error: "Email is required - please login again" };
     }
     
+    // Map frontend role format to backend format
+    let backendRole: string | undefined;
+    if (data.role) {
+      backendRole = data.role === "clinic" || data.role === "CLINIC" ? "CLINIC" : "STAFF";
+    }
+    
     // Transform frontend fields to backend format - include email
     const backendData: Record<string, unknown> = { 
-      ...data,
-      email, // Always include email for backend identification
+      email, // Always include email for backend identification (upsert key)
+      name: data.name,
+      role: backendRole,
+      position: data.position,
     };
     
-    // Convert salary fields to salary_info if backend expects it
+    // Convert salary fields to salary_info
     if (data.salary_min !== undefined || data.salary_max !== undefined) {
       backendData.salary_info = {
         min: data.salary_min,
@@ -528,7 +536,7 @@ export async function updateProfileApi(
       };
     }
     
-    // Convert availability fields if backend expects different format
+    // Convert availability fields
     if (data.availability_days || data.availability_hours || data.availability_date) {
       backendData.availability = {
         days: data.availability_days,
@@ -537,19 +545,25 @@ export async function updateProfileApi(
       };
     }
     
-    // Map city/preferred_area to location based on role
+    // Map city/preferred_area to location
     if (data.city) {
       backendData.location = data.city;
     } else if (data.preferred_area) {
       backendData.location = data.preferred_area;
     }
     
-    const response = await apiCall<FullBackendProfile>(`/profiles/${profileId}`, {
-      method: "PUT",
+    // Use POST /api/profiles (upsert endpoint) instead of PUT
+    const response = await apiCall<BackendAuthResponse>("/profiles", {
+      method: "POST",
       body: JSON.stringify(backendData),
     });
     
-    const profile = transformToProfile(response);
+    // Save updated token if returned
+    if (response.token) {
+      localStorage.setItem("auth_token", response.token);
+    }
+    
+    const profile = transformToProfile(response.user as unknown as FullBackendProfile);
     
     // Update current_user in localStorage with new data
     const storedUser = localStorage.getItem("current_user");
