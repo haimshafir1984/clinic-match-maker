@@ -320,19 +320,30 @@ function transformToCurrentUser(profile: BackendProfile): CurrentUser {
   };
 }
 
+// Backend auth response with JWT token
+interface BackendAuthResponse {
+  success?: boolean;
+  user: BackendProfile;
+  token: string;
+}
+
 // POST /api/auth/login - Login with email only (no password for MVP)
 export async function login(
   email: string
 ): Promise<{ user: CurrentUser | null; error: string | null; needsRegistration?: boolean }> {
   try {
-    const response = await apiCall<{ success: boolean; user: BackendProfile } | BackendProfile>("/auth/login", {
+    const response = await apiCall<BackendAuthResponse>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ email }),
     });
 
-    // Handle both response formats: { success, user } or direct profile
-    const profile = "user" in response ? response.user : response;
-    const user = transformToCurrentUser(profile);
+    // Save JWT token
+    if (response.token) {
+      localStorage.setItem("auth_token", response.token);
+    }
+
+    // Transform user profile
+    const user = transformToCurrentUser(response.user);
     localStorage.setItem("current_user", JSON.stringify(user));
     
     return { user, error: null };
@@ -371,12 +382,17 @@ export async function createProfile(
   data: ProfileCreateData
 ): Promise<{ user: CurrentUser | null; error: string | null }> {
   try {
-    const response = await apiCall<BackendProfile>("/profiles", {
+    const response = await apiCall<BackendAuthResponse>("/profiles", {
       method: "POST",
       body: JSON.stringify(data),
     });
 
-    const user = transformToCurrentUser(response);
+    // Save JWT token from registration response
+    if (response.token) {
+      localStorage.setItem("auth_token", response.token);
+    }
+
+    const user = transformToCurrentUser(response.user);
     localStorage.setItem("current_user", JSON.stringify(user));
     
     return { user, error: null };
