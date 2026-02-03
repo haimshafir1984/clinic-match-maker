@@ -36,20 +36,11 @@ export default function Profile() {
     setIsEditing(false);
     await refreshCurrentUser();
     
-    // Check if profile is now complete
-    const updatedProfile = profile;
-    if (updatedProfile) {
-      const { isComplete } = calculateProfileCompletion(updatedProfile);
-      if (isComplete) {
-        toast.success("הפרופיל הושלם! מעביר אותך להתאמות...");
-        setTimeout(() => {
-          navigate("/swipe", { replace: true });
-        }, 1000);
-        return;
-      }
-    }
-    
-    toast.success("הפרופיל נשמר!");
+    // Always navigate to swipe after successful save - ProfileGuard will handle incomplete profiles
+    toast.success("הפרופיל נשמר! מעביר אותך להתאמות...");
+    setTimeout(() => {
+      navigate("/swipe", { replace: true });
+    }, 500);
   };
 
   // Handle "Save & Start Matching" button
