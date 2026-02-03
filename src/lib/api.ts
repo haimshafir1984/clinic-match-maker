@@ -14,6 +14,8 @@ import {
 
 const API_BASE_URL = "https://clinicmatch.onrender.com/api";
 
+const CURRENT_PROFILE_STORAGE_KEY = "current_profile";
+
 // Helper function for API calls with timeout and error handling
 async function apiCall<T>(
   endpoint: string, 
@@ -59,6 +61,13 @@ async function apiCall<T>(
   }
 }
 
+function normalizeUserRole(role: string | null | undefined): UserRole {
+  const r = role?.toLowerCase();
+  if (r === "clinic") return "clinic";
+  if (r === "worker" || r === "staff") return "worker";
+  return "worker";
+}
+
 // Backend feed profile structure
 interface BackendFeedProfile {
   id: string;
@@ -89,7 +98,7 @@ function transformToMatchCardData(profile: BackendFeedProfile): MatchCardData {
       max: profile.salary_info?.max || null,
     },
     imageUrl: profile.image_url || null,
-    role: (profile.role?.toLowerCase() as "clinic" | "worker") || "worker",
+    role: normalizeUserRole(profile.role),
     // These fields may not come from backend, set defaults
     experienceYears: null,
     description: null,
@@ -308,14 +317,20 @@ interface BackendProfile {
 
 // Transform backend profile to CurrentUser
 function transformToCurrentUser(profile: BackendProfile): CurrentUser {
+  const position = profile.position ?? null;
+  const location = profile.location ?? null;
+  const isProfileComplete = Boolean(profile.name && (position || location) && location);
+
   return {
     id: profile.id,
     email: profile.email,
     profileId: profile.id,
-    role: profile.role.toLowerCase() as UserRole,
+    role: normalizeUserRole(profile.role),
     name: profile.name,
     imageUrl: null,
-    isProfileComplete: true,
+    position,
+    location,
+    isProfileComplete,
     isAdmin: profile.is_admin ?? profile.isAdmin ?? false,
   };
 }
@@ -345,6 +360,14 @@ export async function login(
     // Transform user profile
     const user = transformToCurrentUser(response.user);
     localStorage.setItem("current_user", JSON.stringify(user));
+
+    // Cache full profile locally (backend has no GET /profiles/:id)
+    try {
+      const profile = transformToProfile(response.user as unknown as FullBackendProfile);
+      localStorage.setItem(CURRENT_PROFILE_STORAGE_KEY, JSON.stringify(profile));
+    } catch {
+      // ignore cache errors
+    }
     
     return { user, error: null };
   } catch (error) {
@@ -394,6 +417,14 @@ export async function createProfile(
 
     const user = transformToCurrentUser(response.user);
     localStorage.setItem("current_user", JSON.stringify(user));
+
+    // Cache full profile locally (backend has no GET /profiles/:id)
+    try {
+      const profile = transformToProfile(response.user as unknown as FullBackendProfile);
+      localStorage.setItem(CURRENT_PROFILE_STORAGE_KEY, JSON.stringify(profile));
+    } catch {
+      // ignore cache errors
+    }
     
     return { user, error: null };
   } catch (error) {
@@ -457,16 +488,22 @@ export interface FullBackendProfile {
 
 // Transform backend profile to frontend Profile type
 export function transformToProfile(profile: FullBackendProfile) {
+  const role = normalizeUserRole(profile.role);
+  const location = profile.city || profile.location || null;
+
   return {
     id: profile.id,
     user_id: profile.id, // Backend uses id as user_id
     name: profile.name,
-    role: profile.role?.toLowerCase() as "clinic" | "worker",
+    role,
     position: profile.position || null,
     required_position: profile.required_position || null,
     description: profile.description || null,
-    city: profile.city || profile.location || null,
-    preferred_area: profile.preferred_area || null,
+    // Backend stores a single `location` string; in the UI:
+    // - clinic uses `city`
+    // - worker uses `preferred_area`
+    city: role === "clinic" ? location : (profile.city || null),
+    preferred_area: role === "worker" ? (profile.preferred_area || profile.location || null) : (profile.preferred_area || null),
     radius_km: profile.radius_km || null,
     experience_years: profile.experience_years || null,
     availability_date: profile.availability_date || null,
@@ -483,11 +520,36 @@ export function transformToProfile(profile: FullBackendProfile) {
 
 // GET /api/profiles/:id - Get profile by ID
 export async function getProfile(profileId: string): Promise<ReturnType<typeof transformToProfile> | null> {
+  // Backend does not support GET /api/profiles/:id (returns 404), so we rely on local cache.
   try {
-    const response = await apiCall<FullBackendProfile>(`/profiles/${profileId}`);
-    return transformToProfile(response);
+    const cached = localStorage.getItem(CURRENT_PROFILE_STORAGE_KEY);
+    if (cached) {
+      const parsed = JSON.parse(cached) as ReturnType<typeof transformToProfile>;
+      if (parsed?.id === profileId) return parsed;
+    }
+
+    // Fallback: derive minimal profile from current_user (if it has cached fields)
+    const storedUser = localStorage.getItem("current_user");
+    if (storedUser) {
+      const u = JSON.parse(storedUser) as Partial<CurrentUser> & { location?: string | null; position?: string | null };
+      if (u.profileId === profileId) {
+        const derived: FullBackendProfile = {
+          id: profileId,
+          email: String(u.email || ""),
+          role: String(u.role || "worker"),
+          name: String(u.name || ""),
+          position: u.position ?? null,
+          location: u.location ?? null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        return transformToProfile(derived);
+      }
+    }
+
+    return null;
   } catch (error) {
-    console.error("Error fetching profile:", error);
+    console.error("Error reading cached profile:", error);
     return null;
   }
 }
@@ -564,12 +626,21 @@ export async function updateProfileApi(
     }
     
     const profile = transformToProfile(response.user as unknown as FullBackendProfile);
+
+    // Cache latest profile locally for ProfileGuard/useProfile
+    localStorage.setItem(CURRENT_PROFILE_STORAGE_KEY, JSON.stringify(profile));
     
     // Update current_user in localStorage with new data
     const storedUser = localStorage.getItem("current_user");
     if (storedUser) {
       const currentUser = JSON.parse(storedUser);
       currentUser.name = profile.name;
+      currentUser.role = profile.role;
+      currentUser.position = profile.position;
+      currentUser.location = profile.city || profile.preferred_area;
+      const hasPosition = Boolean(profile.position || profile.required_position);
+      const hasLocation = Boolean(profile.city || profile.preferred_area);
+      currentUser.isProfileComplete = Boolean(profile.name && hasPosition && hasLocation);
       localStorage.setItem("current_user", JSON.stringify(currentUser));
     }
     
@@ -600,6 +671,7 @@ export async function getCurrentUser(): Promise<CurrentUser | null> {
 export async function logout(): Promise<void> {
   localStorage.removeItem("current_user");
   localStorage.removeItem("auth_token");
+  localStorage.removeItem(CURRENT_PROFILE_STORAGE_KEY);
 }
 
 // Backend message structure
