@@ -43,6 +43,7 @@ export interface CurrentUser {
   name: string | null;
   imageUrl: string | null;
   isProfileComplete: boolean;
+  isAdmin?: boolean;
 }
 
 // Swipe request payload
