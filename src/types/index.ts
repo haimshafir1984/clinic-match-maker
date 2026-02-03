@@ -42,6 +42,9 @@ export interface CurrentUser {
   role: UserRole | null;
   name: string | null;
   imageUrl: string | null;
+  /** Cached fields from backend profile (used when backend has no GET /profiles/:id). */
+  position?: string | null;
+  location?: string | null;
   isProfileComplete: boolean;
   isAdmin?: boolean;
 }
