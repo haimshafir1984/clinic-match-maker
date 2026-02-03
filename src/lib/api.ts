@@ -307,6 +307,7 @@ interface BackendProfile {
   role: string;
   name: string;
   position?: string;
+  required_position?: string; // For clinics
   location?: string;
   salary_info?: { min?: number; max?: number } | null;
   availability?: { days?: string[]; hours?: string; start_date?: string } | null;
@@ -317,15 +318,24 @@ interface BackendProfile {
 
 // Transform backend profile to CurrentUser
 function transformToCurrentUser(profile: BackendProfile): CurrentUser {
+  const role = normalizeUserRole(profile.role);
   const position = profile.position ?? null;
+  const requiredPosition = profile.required_position ?? null;
   const location = profile.location ?? null;
-  const isProfileComplete = Boolean(profile.name && (position || location) && location);
+  
+  // Profile is complete when:
+  // - Has name
+  // - Has position (worker) or required_position (clinic)
+  // - Has location
+  const hasPosition = role === "clinic" ? Boolean(requiredPosition) : Boolean(position);
+  const hasLocation = Boolean(location);
+  const isProfileComplete = Boolean(profile.name && hasPosition && hasLocation);
 
   return {
     id: profile.id,
     email: profile.email,
     profileId: profile.id,
-    role: normalizeUserRole(profile.role),
+    role,
     name: profile.name,
     imageUrl: null,
     position,
@@ -388,6 +398,7 @@ export interface ProfileCreateData {
   role: "CLINIC" | "STAFF";
   name: string;
   position?: string;
+  required_position?: string; // Required for clinics
   location?: string;
   salary_info?: {
     min?: number;
@@ -588,6 +599,7 @@ export async function updateProfileApi(
       name: data.name,
       role: backendRole,
       position: data.position,
+      required_position: data.required_position, // Required for clinics
     };
     
     // Convert salary fields to salary_info
