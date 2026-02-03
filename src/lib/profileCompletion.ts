@@ -4,7 +4,8 @@ import { Tables } from "@/integrations/supabase/types";
 type Profile = Tables<"profiles">;
 
 // Required fields for profile completion by role
-const REQUIRED_FIELDS_WORKER = ["name", "position", "city"] as const;
+// Only: name, position/required_position, city (area for workers)
+const REQUIRED_FIELDS_WORKER = ["name", "position", "preferred_area"] as const;
 const REQUIRED_FIELDS_CLINIC = ["name", "required_position", "city"] as const;
 
 // All fields that contribute to profile completeness
@@ -38,7 +39,7 @@ const FIELD_LABELS: Record<string, string> = {
   required_position: "תפקיד מבוקש",
   description: "תיאור",
   city: "עיר",
-  preferred_area: "אזור מועדף",
+  preferred_area: "עיר מועדפת",
   availability_days: "ימי זמינות",
   availability_hours: "שעות זמינות",
   availability_date: "תאריך התחלה",
