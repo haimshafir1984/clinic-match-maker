@@ -408,6 +408,147 @@ export async function createProfile(
   }
 }
 
+// Profile update data for PUT /api/profiles/:id
+export interface ProfileUpdateData {
+  name?: string;
+  role?: "CLINIC" | "STAFF" | "clinic" | "worker";
+  position?: string | null;
+  required_position?: string | null;
+  description?: string | null;
+  city?: string | null;
+  preferred_area?: string | null;
+  radius_km?: number | null;
+  experience_years?: number | null;
+  availability_date?: string | null;
+  availability_days?: string[] | null;
+  availability_hours?: string | null;
+  salary_min?: number | null;
+  salary_max?: number | null;
+  job_type?: string | null;
+}
+
+// Full profile response from backend
+export interface FullBackendProfile {
+  id: string;
+  email: string;
+  role: string;
+  name: string;
+  position?: string | null;
+  required_position?: string | null;
+  description?: string | null;
+  city?: string | null;
+  location?: string | null;
+  preferred_area?: string | null;
+  radius_km?: number | null;
+  experience_years?: number | null;
+  availability_date?: string | null;
+  availability_days?: string[] | null;
+  availability_hours?: string | null;
+  salary_min?: number | null;
+  salary_max?: number | null;
+  salary_info?: { min?: number; max?: number } | null;
+  job_type?: string | null;
+  avatar_url?: string | null;
+  image_url?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  is_admin?: boolean;
+}
+
+// Transform backend profile to frontend Profile type
+export function transformToProfile(profile: FullBackendProfile) {
+  return {
+    id: profile.id,
+    user_id: profile.id, // Backend uses id as user_id
+    name: profile.name,
+    role: profile.role?.toLowerCase() as "clinic" | "worker",
+    position: profile.position || null,
+    required_position: profile.required_position || null,
+    description: profile.description || null,
+    city: profile.city || profile.location || null,
+    preferred_area: profile.preferred_area || null,
+    radius_km: profile.radius_km || null,
+    experience_years: profile.experience_years || null,
+    availability_date: profile.availability_date || null,
+    availability_days: profile.availability_days || null,
+    availability_hours: profile.availability_hours || null,
+    salary_min: profile.salary_min ?? profile.salary_info?.min ?? null,
+    salary_max: profile.salary_max ?? profile.salary_info?.max ?? null,
+    job_type: profile.job_type as "daily" | "temporary" | "permanent" | null,
+    avatar_url: profile.avatar_url || profile.image_url || null,
+    created_at: profile.created_at || new Date().toISOString(),
+    updated_at: profile.updated_at || new Date().toISOString(),
+  };
+}
+
+// GET /api/profiles/:id - Get profile by ID
+export async function getProfile(profileId: string): Promise<ReturnType<typeof transformToProfile> | null> {
+  try {
+    const response = await apiCall<FullBackendProfile>(`/profiles/${profileId}`);
+    return transformToProfile(response);
+  } catch (error) {
+    console.error("Error fetching profile:", error);
+    return null;
+  }
+}
+
+// PUT /api/profiles/:id - Update profile
+export async function updateProfileApi(
+  profileId: string,
+  data: ProfileUpdateData
+): Promise<{ profile: ReturnType<typeof transformToProfile> | null; error: string | null }> {
+  try {
+    // Transform frontend fields to backend format
+    const backendData: Record<string, unknown> = { ...data };
+    
+    // Convert salary fields to salary_info if backend expects it
+    if (data.salary_min !== undefined || data.salary_max !== undefined) {
+      backendData.salary_info = {
+        min: data.salary_min,
+        max: data.salary_max,
+      };
+    }
+    
+    // Convert availability fields if backend expects different format
+    if (data.availability_days || data.availability_hours || data.availability_date) {
+      backendData.availability = {
+        days: data.availability_days,
+        hours: data.availability_hours,
+        start_date: data.availability_date,
+      };
+    }
+    
+    // Map city/preferred_area to location based on role
+    if (data.city) {
+      backendData.location = data.city;
+    } else if (data.preferred_area) {
+      backendData.location = data.preferred_area;
+    }
+    
+    const response = await apiCall<FullBackendProfile>(`/profiles/${profileId}`, {
+      method: "PUT",
+      body: JSON.stringify(backendData),
+    });
+    
+    const profile = transformToProfile(response);
+    
+    // Update current_user in localStorage with new data
+    const storedUser = localStorage.getItem("current_user");
+    if (storedUser) {
+      const currentUser = JSON.parse(storedUser);
+      currentUser.name = profile.name;
+      localStorage.setItem("current_user", JSON.stringify(currentUser));
+    }
+    
+    return { profile, error: null };
+  } catch (error) {
+    if (error instanceof Error) {
+      return { profile: null, error: error.message };
+    }
+    return { profile: null, error: "עדכון הפרופיל נכשל" };
+  }
+}
+
 // Get current user from localStorage
 export async function getCurrentUser(): Promise<CurrentUser | null> {
   const stored = localStorage.getItem("current_user");
