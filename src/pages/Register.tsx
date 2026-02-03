@@ -5,49 +5,80 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CityCombobox } from "@/components/ui/city-combobox";
+import { DomainSelector } from "@/components/registration/DomainSelector";
+import { RoleMultiSelector } from "@/components/registration/RoleMultiSelector";
 import { toast } from "sonner";
-import { Loader2, Heart, Stethoscope, Building2, UserRound, AlertCircle } from "lucide-react";
-import { motion } from "framer-motion";
+import { Loader2, Heart, Stethoscope, Building2, UserRound, AlertCircle, ArrowRight, ArrowLeft } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { WorkplaceDomain } from "@/constants/domains";
 
 type UserRole = "CLINIC" | "STAFF";
 
-const professionOptions = [
-  "רופא שיניים",
-  "רופא עיניים",
-  "אופטומטריסט",
-  "שיננית",
-  "פלסטיקאי",
-  "רופא מזריק",
-  "קלינאי תקשורת",
-  "מזכירה רפואית",
-];
+// Registration steps
+type RegistrationStep = "role" | "domain" | "positions" | "details";
 
-const businessTypeOptions = [
-  "מרפאת שיניים",
-  "מרפאת עיניים",
-  "מרפאת אסתטיקה",
-  "קלינאי תקשורת",
-  "אחר",
-];
+const stepOrder: RegistrationStep[] = ["role", "domain", "positions", "details"];
 
 export default function Register() {
   const location = useLocation();
   const initialEmail = (location.state as { email?: string })?.email || "";
   
+  const [step, setStep] = useState<RegistrationStep>("role");
   const [email, setEmail] = useState(initialEmail);
   const [name, setName] = useState("");
-  const [position, setPosition] = useState("");
-  const [businessType, setBusinessType] = useState("");
+  const [positions, setPositions] = useState<string[]>([]);
+  const [workplaceDomain, setWorkplaceDomain] = useState<WorkplaceDomain | null>(null);
   const [city, setCity] = useState("");
   const [role, setRole] = useState<UserRole | null>(null);
   const [loading, setLoading] = useState(false);
   const [networkError, setNetworkError] = useState<string | null>(null);
   const { signUp } = useAuth();
   const navigate = useNavigate();
+
+  const currentStepIndex = stepOrder.indexOf(step);
+  const canGoBack = currentStepIndex > 0;
+  const isLastStep = step === "details";
+
+  const goToNextStep = () => {
+    const nextIndex = currentStepIndex + 1;
+    if (nextIndex < stepOrder.length) {
+      setStep(stepOrder[nextIndex]);
+    }
+  };
+
+  const goToPreviousStep = () => {
+    const prevIndex = currentStepIndex - 1;
+    if (prevIndex >= 0) {
+      setStep(stepOrder[prevIndex]);
+    }
+  };
+
+  const handleRoleSelect = (selectedRole: UserRole) => {
+    setRole(selectedRole);
+    goToNextStep();
+  };
+
+  const handleDomainSelect = (domain: WorkplaceDomain) => {
+    setWorkplaceDomain(domain);
+    // Reset positions when domain changes
+    setPositions([]);
+    goToNextStep();
+  };
+
+  const handlePositionsChange = (newPositions: string[]) => {
+    setPositions(newPositions);
+  };
+
+  const handlePositionsContinue = () => {
+    if (positions.length === 0) {
+      toast.error("נא לבחור לפחות תפקיד אחד");
+      return;
+    }
+    goToNextStep();
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,6 +94,11 @@ export default function Register() {
       return;
     }
 
+    if (positions.length === 0) {
+      toast.error("נא לבחור לפחות תפקיד אחד");
+      return;
+    }
+
     setLoading(true);
     
     try {
@@ -70,7 +106,8 @@ export default function Register() {
         email,
         role,
         name,
-        position: position || undefined,
+        positions, // Array of positions
+        workplace_types: workplaceDomain ? [workplaceDomain] : [],
         location: city || undefined,
       });
 
@@ -91,6 +128,169 @@ export default function Register() {
       setNetworkError("שגיאה בתקשורת עם השרת. נסה שוב.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const renderStepIndicator = () => (
+    <div className="flex justify-center gap-2 mb-6">
+      {stepOrder.map((s, index) => (
+        <div
+          key={s}
+          className={cn(
+            "w-2 h-2 rounded-full transition-all",
+            index <= currentStepIndex ? "bg-primary" : "bg-muted"
+          )}
+        />
+      ))}
+    </div>
+  );
+
+  const renderStep = () => {
+    switch (step) {
+      case "role":
+        return (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="space-y-4"
+          >
+            <p className="text-center text-muted-foreground">מי את/ה?</p>
+            <div className="grid grid-cols-2 gap-3">
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.98 }}
+                onClick={() => handleRoleSelect("CLINIC")}
+                className={cn(
+                  "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all",
+                  role === "CLINIC"
+                    ? "border-primary bg-primary/5 text-primary"
+                    : "border-border hover:border-primary/50"
+                )}
+              >
+                <Building2 className="w-8 h-8" />
+                <span className="font-medium">מרפאה</span>
+                <span className="text-xs text-muted-foreground">מחפשים עובדים</span>
+              </motion.button>
+              <motion.button
+                type="button"
+                whileTap={{ scale: 0.98 }}
+                onClick={() => handleRoleSelect("STAFF")}
+                className={cn(
+                  "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all",
+                  role === "STAFF"
+                    ? "border-primary bg-primary/5 text-primary"
+                    : "border-border hover:border-primary/50"
+                )}
+              >
+                <UserRound className="w-8 h-8" />
+                <span className="font-medium">עובד/ת</span>
+                <span className="text-xs text-muted-foreground">מחפש/ת עבודה</span>
+              </motion.button>
+            </div>
+          </motion.div>
+        );
+
+      case "domain":
+        return (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+          >
+            <DomainSelector
+              value={workplaceDomain}
+              onChange={handleDomainSelect}
+            />
+          </motion.div>
+        );
+
+      case "positions":
+        return (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="space-y-4"
+          >
+            {workplaceDomain && (
+              <RoleMultiSelector
+                domain={workplaceDomain}
+                selectedRoles={positions}
+                onChange={handlePositionsChange}
+              />
+            )}
+            <Button
+              type="button"
+              className="w-full"
+              onClick={handlePositionsContinue}
+              disabled={positions.length === 0}
+            >
+              המשך
+              <ArrowLeft className="w-4 h-4 mr-2" />
+            </Button>
+          </motion.div>
+        );
+
+      case "details":
+        return (
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="space-y-4"
+          >
+            {/* Selected Positions Display */}
+            <div className="flex flex-wrap gap-2 justify-center mb-4">
+              {positions.map((pos) => (
+                <span
+                  key={pos}
+                  className="px-3 py-1 rounded-full bg-primary/10 text-primary text-sm"
+                >
+                  {pos}
+                </span>
+              ))}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="name">שם מלא *</Label>
+              <Input
+                id="name"
+                type="text"
+                placeholder="שם מלא"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="text-right"
+                dir="rtl"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email">אימייל *</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="your@email.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                dir="ltr"
+                autoComplete="email"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="city">עיר *</Label>
+              <CityCombobox
+                value={city}
+                onChange={setCity}
+                placeholder="בחר עיר"
+              />
+              <p className="text-xs text-muted-foreground">
+                חשוב לבחור את שם העיר המדויק להתאמה טובה יותר
+              </p>
+            </div>
+          </motion.div>
+        );
     }
   };
 
@@ -130,133 +330,46 @@ export default function Register() {
           
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
-              {/* Role Selection */}
-              <div className="space-y-2">
-                <Label>סוג משתמש *</Label>
-                <div className="grid grid-cols-2 gap-3">
-                  <motion.button
-                    type="button"
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setRole("CLINIC")}
-                    className={cn(
-                      "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all",
-                      role === "CLINIC"
-                        ? "border-primary bg-primary/5 text-primary"
-                        : "border-border hover:border-primary/50"
-                    )}
-                  >
-                    <Building2 className="w-8 h-8" />
-                    <span className="font-medium">מרפאה</span>
-                    <span className="text-xs text-muted-foreground">מחפשים עובדים</span>
-                  </motion.button>
-                  <motion.button
-                    type="button"
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setRole("STAFF")}
-                    className={cn(
-                      "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all",
-                      role === "STAFF"
-                        ? "border-primary bg-primary/5 text-primary"
-                        : "border-border hover:border-primary/50"
-                    )}
-                  >
-                    <UserRound className="w-8 h-8" />
-                    <span className="font-medium">עובד/ת</span>
-                    <span className="text-xs text-muted-foreground">מחפש/ת עבודה</span>
-                  </motion.button>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="name">שם מלא *</Label>
-                <Input
-                  id="name"
-                  type="text"
-                  placeholder="שם מלא"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="text-right"
-                  dir="rtl"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="email">אימייל *</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="your@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  dir="ltr"
-                  autoComplete="email"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label>
-                  {role === "CLINIC" ? "איזה תפקיד אתם מגייסים?" : "מה המקצוע שלך?"}
-                </Label>
-                <Select value={position} onValueChange={setPosition}>
-                  <SelectTrigger>
-                    <SelectValue placeholder={role === "CLINIC" ? "בחר תפקיד מבוקש" : "בחר מקצוע"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {professionOptions.map((option) => (
-                      <SelectItem key={option} value={option}>
-                        {option}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {role === "CLINIC" && (
-                <div className="space-y-2">
-                  <Label>סוג העסק</Label>
-                  <Select value={businessType} onValueChange={setBusinessType}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="בחר סוג עסק" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {businessTypeOptions.map((option) => (
-                        <SelectItem key={option} value={option}>
-                          {option}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <Label htmlFor="city">עיר *</Label>
-                <CityCombobox
-                  value={city}
-                  onChange={setCity}
-                  placeholder="בחר עיר"
-                />
-                <p className="text-xs text-muted-foreground">
-                  חשוב לבחור את שם העיר המדויק להתאמה טובה יותר
-                </p>
-              </div>
+              {renderStepIndicator()}
+              <AnimatePresence mode="wait">
+                {renderStep()}
+              </AnimatePresence>
             </CardContent>
+            
             <CardFooter className="flex flex-col gap-4">
-              <Button 
-                type="submit" 
-                className="w-full" 
-                size="lg"
-                disabled={loading || !role}
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin ml-2" />
-                    נרשם...
-                  </>
-                ) : (
-                  "הרשמה"
+              {/* Navigation buttons */}
+              <div className="flex gap-2 w-full">
+                {canGoBack && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={goToPreviousStep}
+                    className="flex-1"
+                  >
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                    חזרה
+                  </Button>
                 )}
-              </Button>
+                
+                {isLastStep && (
+                  <Button 
+                    type="submit" 
+                    className={cn("flex-1", !canGoBack && "w-full")}
+                    size="lg"
+                    disabled={loading || !role || positions.length === 0}
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin ml-2" />
+                        נרשם...
+                      </>
+                    ) : (
+                      "הרשמה"
+                    )}
+                  </Button>
+                )}
+              </div>
+              
               <p className="text-sm text-muted-foreground text-center">
                 יש לך חשבון?{" "}
                 <Link to="/login" className="text-primary hover:underline font-medium">

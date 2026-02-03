@@ -11,11 +11,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CityCombobox } from "@/components/ui/city-combobox";
+import { Badge } from "@/components/ui/badge";
+import { DomainSelector } from "@/components/registration/DomainSelector";
+import { RoleMultiSelector } from "@/components/registration/RoleMultiSelector";
 import { toast } from "sonner";
-import { Loader2, Building2, UserRound, User, MapPin, Calendar, Banknote, CheckCircle2, ArrowLeft } from "lucide-react";
+import { Loader2, Building2, UserRound, User, MapPin, Calendar, Banknote, CheckCircle2, ArrowLeft, Briefcase, X } from "lucide-react";
 import { ProfileFormInput } from "@/hooks/useProfile";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { DOMAINS, WorkplaceDomain, getDomainConfig } from "@/constants/domains";
 
 type UserRole = "clinic" | "worker";
 type JobType = "daily" | "temporary" | "permanent";
@@ -30,29 +34,12 @@ const days = [
   { value: "saturday", label: "שבת" },
 ];
 
-const professionOptions = [
-  "רופא שיניים",
-  "רופא עיניים",
-  "אופטומטריסט",
-  "שיננית",
-  "פלסטיקאי",
-  "רופא מזריק",
-  "קלינאי תקשורת",
-  "מזכירה רפואית",
-];
-
-const businessTypeOptions = [
-  "מרפאת שיניים",
-  "מרפאת עיניים",
-  "מרפאת אסתטיקה",
-  "קלינאי תקשורת",
-  "אחר",
-];
-
 const profileSchema = z.object({
   name: z.string().min(2, "שם חייב להכיל לפחות 2 תווים").max(50, "שם ארוך מדי"),
   role: z.enum(["clinic", "worker"]),
   position: z.string().optional(),
+  positions: z.array(z.string()).optional(),
+  workplace_types: z.array(z.string()).optional(),
   required_position: z.string().optional(),
   description: z.string().max(500, "תיאור ארוך מדי (מקסימום 500 תווים)").optional(),
   city: z.string().optional(),
@@ -85,6 +72,8 @@ interface Profile {
   name: string;
   role: "clinic" | "worker";
   position?: string | null;
+  positions?: string[] | null;
+  workplace_types?: string[] | null;
   required_position?: string | null;
   description?: string | null;
   city?: string | null;
@@ -166,6 +155,15 @@ export function ProfileForm({ initialData, onSuccess }: ProfileFormProps) {
     initialData?.role || (localStorage.getItem("pendingRole") as UserRole | null)
   );
   
+  // Domain and positions state for editing
+  const [selectedDomain, setSelectedDomain] = useState<WorkplaceDomain | null>(
+    (initialData?.workplace_types?.[0] as WorkplaceDomain) || null
+  );
+  const [selectedPositions, setSelectedPositions] = useState<string[]>(
+    initialData?.positions || (initialData?.position ? [initialData.position] : [])
+  );
+  const [showDomainSelector, setShowDomainSelector] = useState(false);
+  
   const createProfile = useCreateProfile();
   const updateProfile = useUpdateProfile();
   const isEditing = !!initialData;
@@ -176,6 +174,8 @@ export function ProfileForm({ initialData, onSuccess }: ProfileFormProps) {
       name: initialData?.name || "",
       role: initialData?.role || role || undefined,
       position: initialData?.position || "",
+      positions: initialData?.positions || [],
+      workplace_types: initialData?.workplace_types || [],
       required_position: initialData?.required_position || "",
       description: initialData?.description || "",
       city: initialData?.city || "",
@@ -197,7 +197,11 @@ export function ProfileForm({ initialData, onSuccess }: ProfileFormProps) {
   const onSubmit = async (data: FormData) => {
     try {
       if (isEditing) {
-        await updateProfile.mutateAsync(data);
+        await updateProfile.mutateAsync({
+          ...data,
+          positions: selectedPositions.length > 0 ? selectedPositions : null,
+          workplace_types: selectedDomain ? [selectedDomain] : null,
+        });
       } else {
         if (!data.name || !data.role) {
           toast.error("נא למלא את כל השדות הנדרשים");
@@ -206,7 +210,9 @@ export function ProfileForm({ initialData, onSuccess }: ProfileFormProps) {
         await createProfile.mutateAsync({
           name: data.name,
           role: data.role,
-          position: data.position || null,
+          position: selectedPositions[0] || data.position || null,
+          positions: selectedPositions.length > 0 ? selectedPositions : null,
+          workplace_types: selectedDomain ? [selectedDomain] : null,
           required_position: data.required_position || null,
           description: data.description || null,
           city: data.city || null,
@@ -230,6 +236,10 @@ export function ProfileForm({ initialData, onSuccess }: ProfileFormProps) {
 
   const isLoading = createProfile.isPending || updateProfile.isPending || isSubmitting;
   const isClinic = currentRole === "clinic";
+
+  const handleRemovePosition = (posToRemove: string) => {
+    setSelectedPositions(selectedPositions.filter(p => p !== posToRemove));
+  };
 
   // Role selection for new profiles
   if (!role && !initialData) {
@@ -296,49 +306,86 @@ export function ProfileForm({ initialData, onSuccess }: ProfileFormProps) {
           />
         </FormField>
 
+        {/* Positions Section */}
         <FormField 
-          label={isClinic ? "איזה תפקיד אתם מגייסים?" : "מה המקצוע שלך?"}
+          label={isClinic ? "תפקידים מבוקשים" : "התפקידים שלך"}
           required
-          error={isClinic ? errors.required_position?.message : errors.position?.message}
+          hint="ניתן לבחור מספר תפקידים"
         >
-          <Select
-            value={watch(isClinic ? "required_position" : "position") || ""}
-            onValueChange={(value) => setValue(isClinic ? "required_position" : "position", value)}
-          >
-            <SelectTrigger className={cn(
-              (isClinic ? errors.required_position : errors.position) && "border-destructive"
-            )}>
-              <SelectValue placeholder={isClinic ? "בחר תפקיד מבוקש" : "בחר מקצוע"} />
-            </SelectTrigger>
-            <SelectContent>
-              {professionOptions.map((option) => (
-                <SelectItem key={option} value={option}>
-                  {option}
-                </SelectItem>
+          {/* Selected Positions Display */}
+          {selectedPositions.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {selectedPositions.map((pos) => (
+                <Badge 
+                  key={pos} 
+                  variant="secondary"
+                  className="flex items-center gap-1 px-3 py-1"
+                >
+                  {pos}
+                  <button
+                    type="button"
+                    onClick={() => handleRemovePosition(pos)}
+                    className="mr-1 hover:text-destructive transition-colors"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </Badge>
               ))}
-            </SelectContent>
-          </Select>
-        </FormField>
-
-        {isClinic && (
-          <FormField label="סוג העסק">
-            <Select
-              value={watch("position") || ""}
-              onValueChange={(value) => setValue("position", value)}
+            </div>
+          )}
+          
+          {/* Domain Selector Toggle */}
+          {!showDomainSelector ? (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowDomainSelector(true)}
+              className="w-full"
             >
-              <SelectTrigger>
-                <SelectValue placeholder="בחר סוג עסק" />
-              </SelectTrigger>
-              <SelectContent>
-                {businessTypeOptions.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </FormField>
-        )}
+              <Briefcase className="w-4 h-4 ml-2" />
+              {selectedPositions.length > 0 ? "הוסף תפקידים נוספים" : "בחר תחום ותפקידים"}
+            </Button>
+          ) : (
+            <div className="space-y-4 p-4 border rounded-lg bg-muted/30">
+              {!selectedDomain ? (
+                <DomainSelector
+                  value={selectedDomain}
+                  onChange={(domain) => setSelectedDomain(domain)}
+                />
+              ) : (
+                <>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span>{getDomainConfig(selectedDomain)?.icon}</span>
+                      <span className="font-medium">{getDomainConfig(selectedDomain)?.label}</span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedDomain(null)}
+                    >
+                      שנה תחום
+                    </Button>
+                  </div>
+                  <RoleMultiSelector
+                    domain={selectedDomain}
+                    selectedRoles={selectedPositions}
+                    onChange={setSelectedPositions}
+                  />
+                </>
+              )}
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setShowDomainSelector(false)}
+                className="w-full"
+              >
+                סגור
+              </Button>
+            </div>
+          )}
+        </FormField>
 
         {!isClinic && (
           <FormField 
