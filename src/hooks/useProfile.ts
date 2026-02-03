@@ -48,10 +48,26 @@ export function useCreateProfile() {
 
   return useMutation({
     mutationFn: async (profile: ProfileFormInput) => {
-      // Get email from localStorage
-      const pendingEmail = localStorage.getItem("pendingEmail");
-      
-      if (!pendingEmail) {
+      // The backend identifies profile by email (upsert). Email may come from:
+      // 1) current_user (logged in)
+      // 2) pendingEmail (signup flow)
+      let email: string | null = null;
+
+      const currentUserRaw = localStorage.getItem("current_user");
+      if (currentUserRaw) {
+        try {
+          const parsed = JSON.parse(currentUserRaw);
+          email = typeof parsed?.email === "string" ? parsed.email : null;
+        } catch {
+          // ignore parse errors
+        }
+      }
+
+      if (!email) {
+        email = localStorage.getItem("pendingEmail");
+      }
+
+      if (!email) {
         throw new Error("Email is required");
       }
 
@@ -59,7 +75,7 @@ export function useCreateProfile() {
       const role = profile.role === "clinic" ? "CLINIC" : "STAFF";
       
       const result = await createProfileApi({
-        email: pendingEmail,
+        email,
         name: profile.name,
         role,
         position: profile.position || undefined,
