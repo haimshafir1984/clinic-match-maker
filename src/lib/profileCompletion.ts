@@ -1,12 +1,24 @@
 // Profile completion logic
-import { Tables } from "@/integrations/supabase/types";
 
-type Profile = Tables<"profiles">;
-
-// Required fields for profile completion by role
-// Only: name, position/required_position, city (area for workers)
-const REQUIRED_FIELDS_WORKER = ["name", "position", "preferred_area"] as const;
-const REQUIRED_FIELDS_CLINIC = ["name", "required_position", "city"] as const;
+// Profile type - matches what API returns (not Supabase types)
+interface Profile {
+  id?: string;
+  name?: string | null;
+  role?: "clinic" | "worker" | null;
+  position?: string | null;
+  required_position?: string | null;
+  description?: string | null;
+  city?: string | null;
+  preferred_area?: string | null;
+  radius_km?: number | null;
+  experience_years?: number | null;
+  availability_date?: string | null;
+  availability_days?: string[] | null;
+  availability_hours?: string | null;
+  salary_min?: number | null;
+  salary_max?: number | null;
+  job_type?: "daily" | "temporary" | "permanent" | null;
+}
 
 // All fields that contribute to profile completeness
 const ALL_PROFILE_FIELDS = [
@@ -75,15 +87,23 @@ export function calculateProfileCompletion(
   }
 
   const isClinic = profile.role === "clinic";
-  const requiredFields = isClinic ? REQUIRED_FIELDS_CLINIC : REQUIRED_FIELDS_WORKER;
-
-  // Check required fields
   const missingRequiredFields: string[] = [];
-  for (const field of requiredFields) {
-    const value = profile[field as keyof Profile];
-    if (!isFieldFilled(value)) {
-      missingRequiredFields.push(field);
-    }
+
+  // Required: name
+  if (!isFieldFilled(profile.name)) {
+    missingRequiredFields.push("name");
+  }
+
+  // Required: position OR required_position (either one is fine)
+  const hasPosition = isFieldFilled(profile.position) || isFieldFilled(profile.required_position);
+  if (!hasPosition) {
+    missingRequiredFields.push(isClinic ? "required_position" : "position");
+  }
+
+  // Required: city OR preferred_area (either one is fine)
+  const hasLocation = isFieldFilled(profile.city) || isFieldFilled(profile.preferred_area);
+  if (!hasLocation) {
+    missingRequiredFields.push(isClinic ? "city" : "preferred_area");
   }
 
   // Calculate overall percentage

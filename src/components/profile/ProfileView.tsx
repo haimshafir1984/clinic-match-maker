@@ -1,10 +1,28 @@
-import { Tables } from "@/integrations/supabase/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Building2, UserRound, Briefcase, MapPin, Calendar, Banknote, Clock } from "lucide-react";
 
-type Profile = Tables<"profiles">;
+// Profile type that matches API response (not Supabase types)
+interface Profile {
+  id?: string;
+  name?: string | null;
+  role?: "clinic" | "worker" | null;
+  position?: string | null;
+  required_position?: string | null;
+  description?: string | null;
+  city?: string | null;
+  preferred_area?: string | null;
+  radius_km?: number | null;
+  experience_years?: number | null;
+  availability_date?: string | null;
+  availability_days?: string[] | null;
+  availability_hours?: string | null;
+  salary_min?: number | null;
+  salary_max?: number | null;
+  job_type?: "daily" | "temporary" | "permanent" | null;
+  avatar_url?: string | null;
+}
 
 interface ProfileViewProps {
   profile: Profile;

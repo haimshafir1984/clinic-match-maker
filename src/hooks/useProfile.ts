@@ -79,6 +79,7 @@ export function useCreateProfile() {
         name: profile.name,
         role,
         position: profile.position || undefined,
+        required_position: profile.required_position || undefined, // Required for clinics
         location: profile.city || profile.preferred_area || undefined,
         salary_info: profile.salary_min || profile.salary_max ? {
           min: profile.salary_min || undefined,
