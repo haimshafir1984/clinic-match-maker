@@ -9,12 +9,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CityCombobox } from "@/components/ui/city-combobox";
 import { toast } from "sonner";
-import { Loader2, Building2, UserRound } from "lucide-react";
+import { Loader2, Building2, UserRound, User, MapPin, Calendar, Banknote, CheckCircle2, ArrowLeft } from "lucide-react";
 import { Tables } from "@/integrations/supabase/types";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 type Profile = Tables<"profiles">;
@@ -51,11 +51,11 @@ const businessTypeOptions = [
 ];
 
 const profileSchema = z.object({
-  name: z.string().min(2, "שם חייב להכיל לפחות 2 תווים"),
+  name: z.string().min(2, "שם חייב להכיל לפחות 2 תווים").max(50, "שם ארוך מדי"),
   role: z.enum(["clinic", "worker"]),
   position: z.string().optional(),
   required_position: z.string().optional(),
-  description: z.string().optional(),
+  description: z.string().max(500, "תיאור ארוך מדי (מקסימום 500 תווים)").optional(),
   city: z.string().optional(),
   preferred_area: z.string().optional(),
   radius_km: z.number().min(1).max(100).optional(),
@@ -66,6 +66,15 @@ const profileSchema = z.object({
   salary_min: z.number().min(0).optional(),
   salary_max: z.number().min(0).optional(),
   job_type: z.enum(["daily", "temporary", "permanent"]).optional(),
+}).refine((data) => {
+  // Validate salary range
+  if (data.salary_min && data.salary_max && data.salary_min > data.salary_max) {
+    return false;
+  }
+  return true;
+}, {
+  message: "שכר מינימום חייב להיות קטן משכר מקסימום",
+  path: ["salary_min"],
 });
 
 type FormData = z.infer<typeof profileSchema>;
@@ -73,6 +82,60 @@ type FormData = z.infer<typeof profileSchema>;
 interface ProfileFormProps {
   initialData?: Profile | null;
   onSuccess: () => void;
+}
+
+interface FormSectionProps {
+  title: string;
+  icon: React.ReactNode;
+  children: React.ReactNode;
+}
+
+function FormSection({ title, icon, children }: FormSectionProps) {
+  return (
+    <Card className="overflow-hidden">
+      <CardHeader className="pb-3 bg-muted/30">
+        <CardTitle className="text-base font-medium flex items-center gap-2">
+          {icon}
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="pt-4 space-y-4">
+        {children}
+      </CardContent>
+    </Card>
+  );
+}
+
+interface FormFieldProps {
+  label: string;
+  required?: boolean;
+  error?: string;
+  hint?: string;
+  children: React.ReactNode;
+}
+
+function FormField({ label, required, error, hint, children }: FormFieldProps) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-sm font-medium">
+        {label}
+        {required && <span className="text-destructive mr-1">*</span>}
+      </Label>
+      {children}
+      {error && (
+        <motion.p 
+          initial={{ opacity: 0, y: -5 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-sm text-destructive flex items-center gap-1"
+        >
+          {error}
+        </motion.p>
+      )}
+      {hint && !error && (
+        <p className="text-xs text-muted-foreground">{hint}</p>
+      )}
+    </div>
+  );
 }
 
 export function ProfileForm({ initialData, onSuccess }: ProfileFormProps) {
@@ -84,7 +147,7 @@ export function ProfileForm({ initialData, onSuccess }: ProfileFormProps) {
   const updateProfile = useUpdateProfile();
   const isEditing = !!initialData;
 
-  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
       name: initialData?.name || "",
@@ -112,9 +175,7 @@ export function ProfileForm({ initialData, onSuccess }: ProfileFormProps) {
     try {
       if (isEditing) {
         await updateProfile.mutateAsync(data);
-        toast.success("הפרופיל עודכן בהצלחה!");
       } else {
-        // Ensure required fields are present for create
         if (!data.name || !data.role) {
           toast.error("נא למלא את כל השדות הנדרשים");
           return;
@@ -137,295 +198,340 @@ export function ProfileForm({ initialData, onSuccess }: ProfileFormProps) {
           job_type: data.job_type || null,
         });
         localStorage.removeItem("pendingRole");
-        toast.success("הפרופיל נוצר בהצלחה!");
       }
       onSuccess();
     } catch (error: any) {
-      toast.error("שגיאה", { description: error.message });
+      toast.error("שגיאה בשמירה", { description: error.message });
     }
   };
 
-  const isLoading = createProfile.isPending || updateProfile.isPending;
+  const isLoading = createProfile.isPending || updateProfile.isPending || isSubmitting;
   const isClinic = currentRole === "clinic";
 
   // Role selection for new profiles
   if (!role && !initialData) {
     return (
-      <div className="space-y-4">
-        <p className="text-muted-foreground">בחר את סוג המשתמש שלך:</p>
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="space-y-4"
+      >
+        <p className="text-muted-foreground text-center">בחר את סוג המשתמש שלך:</p>
         <div className="grid grid-cols-2 gap-4">
           <motion.button
             type="button"
+            whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => {
               setRole("clinic");
               setValue("role", "clinic");
             }}
-            className="flex flex-col items-center gap-3 p-6 rounded-xl border-2 border-border hover:border-primary/50 transition-all"
+            className="flex flex-col items-center gap-3 p-6 rounded-xl border-2 border-border hover:border-primary/50 hover:bg-primary/5 transition-all"
           >
-            <Building2 className="w-12 h-12 text-primary" />
-            <span className="font-semibold">מרפאה</span>
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+              <Building2 className="w-8 h-8 text-primary" />
+            </div>
+            <span className="font-semibold text-lg">מרפאה</span>
             <span className="text-xs text-muted-foreground text-center">מחפשים עובדים</span>
           </motion.button>
           <motion.button
             type="button"
+            whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => {
               setRole("worker");
               setValue("role", "worker");
             }}
-            className="flex flex-col items-center gap-3 p-6 rounded-xl border-2 border-border hover:border-primary/50 transition-all"
+            className="flex flex-col items-center gap-3 p-6 rounded-xl border-2 border-border hover:border-primary/50 hover:bg-primary/5 transition-all"
           >
-            <UserRound className="w-12 h-12 text-primary" />
-            <span className="font-semibold">עובד/ת</span>
+            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+              <UserRound className="w-8 h-8 text-primary" />
+            </div>
+            <span className="font-semibold text-lg">עובד/ת</span>
             <span className="text-xs text-muted-foreground text-center">מחפש/ת עבודה</span>
           </motion.button>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
       <input type="hidden" {...register("role")} value={currentRole || ""} />
 
       {/* Basic Info */}
-      <Card>
-        <CardContent className="pt-6 space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">{isClinic ? "שם המרפאה" : "שם מלא"} *</Label>
-            <Input
-              id="name"
-              {...register("name")}
-              placeholder={isClinic ? "מרפאת שיניים..." : "ישראל ישראלי"}
-            />
-            {errors.name && (
-              <p className="text-sm text-destructive">{errors.name.message}</p>
-            )}
-          </div>
+      <FormSection title="פרטים בסיסיים" icon={<User className="w-4 h-4 text-primary" />}>
+        <FormField 
+          label={isClinic ? "שם המרפאה" : "שם מלא"} 
+          required 
+          error={errors.name?.message}
+        >
+          <Input
+            {...register("name")}
+            placeholder={isClinic ? "מרפאת שיניים..." : "ישראל ישראלי"}
+            className={cn(errors.name && "border-destructive focus-visible:ring-destructive")}
+          />
+        </FormField>
 
-          <div className="space-y-2">
-            <Label htmlFor={isClinic ? "required_position" : "position"}>
-              {isClinic ? "איזה תפקיד אתם מגייסים?" : "מה המקצוע שלך?"}
-            </Label>
+        <FormField 
+          label={isClinic ? "איזה תפקיד אתם מגייסים?" : "מה המקצוע שלך?"}
+          required
+          error={isClinic ? errors.required_position?.message : errors.position?.message}
+        >
+          <Select
+            value={watch(isClinic ? "required_position" : "position") || ""}
+            onValueChange={(value) => setValue(isClinic ? "required_position" : "position", value)}
+          >
+            <SelectTrigger className={cn(
+              (isClinic ? errors.required_position : errors.position) && "border-destructive"
+            )}>
+              <SelectValue placeholder={isClinic ? "בחר תפקיד מבוקש" : "בחר מקצוע"} />
+            </SelectTrigger>
+            <SelectContent>
+              {professionOptions.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FormField>
+
+        {isClinic && (
+          <FormField label="סוג העסק">
             <Select
-              value={watch(isClinic ? "required_position" : "position") || ""}
-              onValueChange={(value) => setValue(isClinic ? "required_position" : "position", value)}
+              value={watch("position") || ""}
+              onValueChange={(value) => setValue("position", value)}
             >
               <SelectTrigger>
-                <SelectValue placeholder={isClinic ? "בחר תפקיד מבוקש" : "בחר מקצוע"} />
+                <SelectValue placeholder="בחר סוג עסק" />
               </SelectTrigger>
               <SelectContent>
-                {professionOptions.map((option) => (
+                {businessTypeOptions.map((option) => (
                   <SelectItem key={option} value={option}>
                     {option}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
-          </div>
+          </FormField>
+        )}
 
-          {isClinic && (
-            <div className="space-y-2">
-              <Label htmlFor="position">סוג העסק</Label>
-              <Select
-                value={watch("position") || ""}
-                onValueChange={(value) => setValue("position", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="בחר סוג עסק" />
-                </SelectTrigger>
-                <SelectContent>
-                  {businessTypeOptions.map((option) => (
-                    <SelectItem key={option} value={option}>
-                      {option}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
-          {!isClinic && (
-            <div className="space-y-2">
-              <Label htmlFor="experience_years">שנות ניסיון</Label>
-              <Input
-                id="experience_years"
-                type="number"
-                min={0}
-                {...register("experience_years", { valueAsNumber: true })}
-                placeholder="3"
-              />
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <Label htmlFor="description">תיאור</Label>
-            <Textarea
-              id="description"
-              {...register("description")}
-              placeholder={isClinic 
-                ? "ספר על המרפאה, האווירה, והציפיות..." 
-                : "ספר על עצמך, הניסיון והיכולות שלך..."}
-              rows={3}
+        {!isClinic && (
+          <FormField 
+            label="שנות ניסיון"
+            hint="כמה שנות ניסיון יש לך בתחום?"
+          >
+            <Input
+              type="number"
+              min={0}
+              max={50}
+              {...register("experience_years", { valueAsNumber: true })}
+              placeholder="3"
+              className="w-32"
             />
-          </div>
-        </CardContent>
-      </Card>
+          </FormField>
+        )}
+
+        <FormField 
+          label="תיאור" 
+          error={errors.description?.message}
+          hint={`${watch("description")?.length || 0}/500 תווים`}
+        >
+          <Textarea
+            {...register("description")}
+            placeholder={isClinic 
+              ? "ספר על המרפאה, האווירה, והציפיות..." 
+              : "ספר על עצמך, הניסיון והיכולות שלך..."}
+            rows={3}
+            className={cn(errors.description && "border-destructive")}
+          />
+        </FormField>
+      </FormSection>
 
       {/* Location */}
-      <Card>
-        <CardContent className="pt-6 space-y-4">
-          <h3 className="font-semibold">מיקום</h3>
-          
-          <div className="space-y-2">
-            <Label htmlFor={isClinic ? "city" : "preferred_area"}>
-              {isClinic ? "עיר *" : "עיר מועדפת"}
-            </Label>
-            <CityCombobox
-              value={watch(isClinic ? "city" : "preferred_area") || ""}
-              onChange={(value) => setValue(isClinic ? "city" : "preferred_area", value)}
-              placeholder={isClinic ? "בחר עיר" : "בחר עיר מועדפת"}
-            />
-            <p className="text-xs text-muted-foreground">
-              חשוב לבחור את שם העיר המדויק להתאמה טובה יותר
-            </p>
-          </div>
+      <FormSection title="מיקום" icon={<MapPin className="w-4 h-4 text-primary" />}>
+        <FormField 
+          label={isClinic ? "עיר" : "עיר מועדפת"}
+          required
+          hint="חשוב לבחור את שם העיר המדויק להתאמה טובה יותר"
+        >
+          <CityCombobox
+            value={watch(isClinic ? "city" : "preferred_area") || ""}
+            onChange={(value) => setValue(isClinic ? "city" : "preferred_area", value)}
+            placeholder={isClinic ? "בחר עיר" : "בחר עיר מועדפת"}
+          />
+        </FormField>
 
-          {isClinic && (
-            <div className="space-y-2">
-              <Label htmlFor="radius_km">רדיוס חיפוש (ק"מ)</Label>
+        {isClinic && (
+          <FormField 
+            label="רדיוס חיפוש"
+            hint="כמה רחוק אתם מוכנים שהעובד יגיע?"
+          >
+            <div className="flex items-center gap-2">
               <Input
-                id="radius_km"
                 type="number"
                 min={1}
                 max={100}
                 {...register("radius_km", { valueAsNumber: true })}
                 placeholder="10"
+                className="w-24"
               />
+              <span className="text-sm text-muted-foreground">ק"מ</span>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </FormField>
+        )}
+      </FormSection>
 
       {/* Availability */}
-      <Card>
-        <CardContent className="pt-6 space-y-4">
-          <h3 className="font-semibold">זמינות</h3>
-          
-          <div className="space-y-2">
-            <Label>ימים זמינים</Label>
-            <div className="flex flex-wrap gap-2">
-              {days.map((day) => (
-                <label
-                  key={day.value}
-                  className={cn(
-                    "flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-colors",
-                    selectedDays.includes(day.value)
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-background border-border hover:border-primary/50"
-                  )}
-                >
-                  <Checkbox
-                    checked={selectedDays.includes(day.value)}
-                    onCheckedChange={(checked) => {
-                      if (checked) {
-                        setValue("availability_days", [...selectedDays, day.value]);
-                      } else {
-                        setValue("availability_days", selectedDays.filter((d) => d !== day.value));
-                      }
-                    }}
-                    className="sr-only"
-                  />
-                  <span className="text-sm">{day.label}</span>
-                </label>
-              ))}
-            </div>
+      <FormSection title="זמינות" icon={<Calendar className="w-4 h-4 text-primary" />}>
+        <FormField label="ימים זמינים">
+          <div className="flex flex-wrap gap-2">
+            {days.map((day) => (
+              <label
+                key={day.value}
+                className={cn(
+                  "flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-all text-sm",
+                  selectedDays.includes(day.value)
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-background border-border hover:border-primary/50"
+                )}
+              >
+                <Checkbox
+                  checked={selectedDays.includes(day.value)}
+                  onCheckedChange={(checked) => {
+                    if (checked) {
+                      setValue("availability_days", [...selectedDays, day.value]);
+                    } else {
+                      setValue("availability_days", selectedDays.filter((d) => d !== day.value));
+                    }
+                  }}
+                  className="sr-only"
+                />
+                <span>{day.label}</span>
+              </label>
+            ))}
           </div>
+        </FormField>
 
-          <div className="space-y-2">
-            <Label htmlFor="availability_hours">שעות</Label>
+        <div className="grid grid-cols-2 gap-4">
+          <FormField label="שעות">
             <Input
-              id="availability_hours"
               {...register("availability_hours")}
               placeholder="08:00 - 16:00"
             />
-          </div>
+          </FormField>
 
-          <div className="space-y-2">
-            <Label htmlFor="availability_date">תאריך התחלה</Label>
+          <FormField label="תאריך התחלה">
             <Input
-              id="availability_date"
               type="date"
               {...register("availability_date")}
             />
-          </div>
-        </CardContent>
-      </Card>
+          </FormField>
+        </div>
+      </FormSection>
 
       {/* Salary & Job Type */}
-      <Card>
-        <CardContent className="pt-6 space-y-4">
-          <h3 className="font-semibold">{isClinic ? "תנאי העסקה" : "ציפיות שכר"}</h3>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="salary_min">
-                {isClinic ? "שכר מינימום (₪)" : "שכר מינימלי (₪)"}
-              </Label>
+      <FormSection 
+        title={isClinic ? "תנאי העסקה" : "ציפיות שכר"} 
+        icon={<Banknote className="w-4 h-4 text-primary" />}
+      >
+        <div className="grid grid-cols-2 gap-4">
+          <FormField 
+            label={isClinic ? "שכר מינימום" : "שכר מינימלי"}
+            error={errors.salary_min?.message}
+          >
+            <div className="relative">
               <Input
-                id="salary_min"
                 type="number"
                 min={0}
                 {...register("salary_min", { valueAsNumber: true })}
                 placeholder="5000"
+                className="pr-8"
               />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₪</span>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="salary_max">
-                {isClinic ? "שכר מקסימום (₪)" : "שכר מקסימלי (₪)"}
-              </Label>
+          </FormField>
+          
+          <FormField 
+            label={isClinic ? "שכר מקסימום" : "שכר מקסימלי"}
+          >
+            <div className="relative">
               <Input
-                id="salary_max"
                 type="number"
                 min={0}
                 {...register("salary_max", { valueAsNumber: true })}
                 placeholder="15000"
+                className="pr-8"
               />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">₪</span>
             </div>
-          </div>
+          </FormField>
+        </div>
 
-          <div className="space-y-2">
-            <Label>סוג משרה</Label>
-            <Select
-              value={watch("job_type") || ""}
-              onValueChange={(value) => setValue("job_type", value as JobType)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="בחר סוג משרה" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="daily">יומי</SelectItem>
-                <SelectItem value="temporary">זמני</SelectItem>
-                <SelectItem value="permanent">קבוע</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
+        <FormField label="סוג משרה">
+          <Select
+            value={watch("job_type") || ""}
+            onValueChange={(value) => setValue("job_type", value as JobType)}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="בחר סוג משרה" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="daily">יומי</SelectItem>
+              <SelectItem value="temporary">זמני</SelectItem>
+              <SelectItem value="permanent">קבוע</SelectItem>
+            </SelectContent>
+          </Select>
+        </FormField>
+      </FormSection>
 
-      <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
-        {isLoading ? (
-          <>
-            <Loader2 className="w-4 h-4 animate-spin ml-2" />
-            שומר...
-          </>
-        ) : isEditing ? (
-          "עדכן פרופיל"
-        ) : (
-          "צור פרופיל"
-        )}
-      </Button>
+      {/* Submit Button */}
+      <div className="pt-4 pb-8">
+        <Button 
+          type="submit" 
+          className="w-full gap-2" 
+          size="lg" 
+          disabled={isLoading}
+        >
+          <AnimatePresence mode="wait">
+            {isLoading ? (
+              <motion.span
+                key="loading"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="flex items-center gap-2"
+              >
+                <Loader2 className="w-4 h-4 animate-spin" />
+                שומר...
+              </motion.span>
+            ) : isEditing ? (
+              <motion.span
+                key="update"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="flex items-center gap-2"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                עדכן פרופיל
+              </motion.span>
+            ) : (
+              <motion.span
+                key="create"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="flex items-center gap-2"
+              >
+                המשך להתאמות
+                <ArrowLeft className="w-4 h-4" />
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </Button>
+      </div>
     </form>
   );
 }

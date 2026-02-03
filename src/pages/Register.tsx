@@ -84,7 +84,8 @@ export default function Register() {
         }
       } else {
         toast.success("נרשמת בהצלחה!");
-        navigate("/swipe");
+        // Always redirect to profile page after registration
+        navigate("/profile", { state: { isNew: true } });
       }
     } catch (error) {
       setNetworkError("שגיאה בתקשורת עם השרת. נסה שוב.");
