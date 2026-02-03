@@ -398,7 +398,9 @@ export interface ProfileCreateData {
   role: "CLINIC" | "STAFF";
   name: string;
   position?: string;
+  positions?: string[]; // Array of positions (new multi-select)
   required_position?: string; // Required for clinics
+  workplace_types?: string[]; // Array of domains (e.g., "dental", "optics")
   location?: string;
   salary_info?: {
     min?: number;
@@ -416,9 +418,43 @@ export async function createProfile(
   data: ProfileCreateData
 ): Promise<{ user: CurrentUser | null; error: string | null }> {
   try {
+    // Build payload with positions array support
+    const payload: Record<string, unknown> = {
+      email: data.email,
+      role: data.role,
+      name: data.name,
+      location: data.location,
+    };
+
+    // Handle positions - send as array if provided, or single position
+    if (data.positions && data.positions.length > 0) {
+      payload.positions = data.positions;
+      // Also set single position for backward compatibility
+      payload.position = data.positions[0];
+    } else if (data.position) {
+      payload.position = data.position;
+    }
+
+    // Handle workplace_types array
+    if (data.workplace_types && data.workplace_types.length > 0) {
+      payload.workplace_types = data.workplace_types;
+    }
+
+    if (data.required_position) {
+      payload.required_position = data.required_position;
+    }
+
+    if (data.salary_info) {
+      payload.salary_info = data.salary_info;
+    }
+
+    if (data.availability) {
+      payload.availability = data.availability;
+    }
+
     const response = await apiCall<BackendAuthResponse>("/profiles", {
       method: "POST",
-      body: JSON.stringify(data),
+      body: JSON.stringify(payload),
     });
 
     // Save JWT token from registration response
@@ -455,7 +491,9 @@ export interface ProfileUpdateData {
   name?: string;
   role?: "CLINIC" | "STAFF" | "clinic" | "worker";
   position?: string | null;
+  positions?: string[] | null; // Array of positions (new multi-select)
   required_position?: string | null;
+  workplace_types?: string[] | null; // Array of domains
   description?: string | null;
   city?: string | null;
   preferred_area?: string | null;
@@ -476,7 +514,9 @@ export interface FullBackendProfile {
   role: string;
   name: string;
   position?: string | null;
+  positions?: string[] | null; // Array of positions (new multi-select)
   required_position?: string | null;
+  workplace_types?: string[] | null; // Array of domains
   description?: string | null;
   city?: string | null;
   location?: string | null;
@@ -508,7 +548,9 @@ export function transformToProfile(profile: FullBackendProfile) {
     name: profile.name,
     role,
     position: profile.position || null,
+    positions: profile.positions || null, // Array of positions
     required_position: profile.required_position || null,
+    workplace_types: profile.workplace_types || null, // Array of domains
     description: profile.description || null,
     // Backend stores a single `location` string; in the UI:
     // - clinic uses `city`

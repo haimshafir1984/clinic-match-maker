@@ -9,6 +9,8 @@ interface Profile {
   name?: string | null;
   role?: "clinic" | "worker" | null;
   position?: string | null;
+  positions?: string[] | null;
+  workplace_types?: string[] | null;
   required_position?: string | null;
   description?: string | null;
   city?: string | null;
@@ -73,7 +75,17 @@ export function ProfileView({ profile }: ProfileViewProps) {
                 </Badge>
               </div>
               
-              {(profile.position || profile.required_position) && (
+              {/* Display multiple positions as badges */}
+              {profile.positions && profile.positions.length > 0 ? (
+                <div className="flex flex-wrap gap-1 mt-2">
+                  {profile.positions.map((pos) => (
+                    <Badge key={pos} variant="outline" className="text-xs">
+                      <Briefcase className="w-3 h-3 ml-1" />
+                      {pos}
+                    </Badge>
+                  ))}
+                </div>
+              ) : (profile.position || profile.required_position) && (
                 <p className="text-muted-foreground flex items-center gap-1">
                   <Briefcase className="w-4 h-4" />
                   {isClinic ? profile.required_position : profile.position}

@@ -16,6 +16,8 @@ export interface ProfileFormInput {
   name: string;
   role: "clinic" | "worker";
   position?: string | null;
+  positions?: string[] | null; // Array of positions (new multi-select)
+  workplace_types?: string[] | null; // Array of domains
   required_position?: string | null;
   description?: string | null;
   city?: string | null;
@@ -79,6 +81,8 @@ export function useCreateProfile() {
         name: profile.name,
         role,
         position: profile.position || undefined,
+        positions: profile.positions || undefined, // Array of positions
+        workplace_types: profile.workplace_types || undefined, // Array of domains
         required_position: profile.required_position || undefined, // Required for clinics
         location: profile.city || profile.preferred_area || undefined,
         salary_info: profile.salary_min || profile.salary_max ? {
