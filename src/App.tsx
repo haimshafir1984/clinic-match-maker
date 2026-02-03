@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AuthGuard } from "@/components/auth/AuthGuard";
+import { ProfileGuard } from "@/components/auth/ProfileGuard";
 
 // Pages
 import Login from "./pages/Login";
@@ -37,12 +38,24 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
 
-            {/* Protected Routes */}
+            {/* Profile Route - Auth required but profile completion NOT required */}
+            <Route
+              path="/profile"
+              element={
+                <AuthGuard>
+                  <Profile />
+                </AuthGuard>
+              }
+            />
+
+            {/* Protected Routes - Require both Auth AND complete profile */}
             <Route
               path="/swipe"
               element={
                 <AuthGuard>
-                  <Swipe />
+                  <ProfileGuard>
+                    <Swipe />
+                  </ProfileGuard>
                 </AuthGuard>
               }
             />
@@ -50,7 +63,9 @@ const App = () => (
               path="/matches"
               element={
                 <AuthGuard>
-                  <Matches />
+                  <ProfileGuard>
+                    <Matches />
+                  </ProfileGuard>
                 </AuthGuard>
               }
             />
@@ -58,7 +73,9 @@ const App = () => (
               path="/chat"
               element={
                 <AuthGuard>
-                  <ChatList />
+                  <ProfileGuard>
+                    <ChatList />
+                  </ProfileGuard>
                 </AuthGuard>
               }
             />
@@ -66,15 +83,9 @@ const App = () => (
               path="/chat/:matchId"
               element={
                 <AuthGuard>
-                  <Chat />
-                </AuthGuard>
-              }
-            />
-            <Route
-              path="/profile"
-              element={
-                <AuthGuard>
-                  <Profile />
+                  <ProfileGuard>
+                    <Chat />
+                  </ProfileGuard>
                 </AuthGuard>
               }
             />

@@ -1,19 +1,30 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { useAuth } from "@/contexts/AuthContext";
 import { useProfile } from "@/hooks/useProfile";
 import { ProfileForm } from "@/components/profile/ProfileForm";
 import { ProfileView } from "@/components/profile/ProfileView";
+import { ProfileProgress } from "@/components/profile/ProfileProgress";
+import { calculateProfileCompletion } from "@/lib/profileCompletion";
 import { Button } from "@/components/ui/button";
-import { Loader2, LogOut, Edit2 } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2, LogOut, Edit2, ArrowLeft, Sparkles, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import { motion } from "framer-motion";
 
 export default function Profile() {
   const { signOut, refreshCurrentUser } = useAuth();
   const { data: profile, isLoading } = useProfile();
   const navigate = useNavigate();
+  const location = useLocation();
   const [isEditing, setIsEditing] = useState(false);
+
+  // Check if user was redirected here from a protected route
+  const fromLocation = location.state?.from?.pathname;
+  const needsCompletion = location.state?.needsCompletion;
+  const isNewUser = location.state?.isNew;
 
   const handleSignOut = async () => {
     await signOut();
@@ -23,8 +34,33 @@ export default function Profile() {
 
   const handleProfileSuccess = async () => {
     setIsEditing(false);
-    // Refresh the current user context after profile changes
     await refreshCurrentUser();
+    
+    // Check if profile is now complete
+    const updatedProfile = profile;
+    if (updatedProfile) {
+      const { isComplete } = calculateProfileCompletion(updatedProfile);
+      if (isComplete) {
+        toast.success("הפרופיל הושלם! מעביר אותך להתאמות...");
+        setTimeout(() => {
+          navigate(fromLocation || "/swipe", { replace: true });
+        }, 1000);
+        return;
+      }
+    }
+    
+    toast.success("הפרופיל נשמר!");
+  };
+
+  const handleContinueToMatches = () => {
+    if (profile) {
+      const { isComplete } = calculateProfileCompletion(profile);
+      if (isComplete) {
+        navigate("/swipe");
+      } else {
+        toast.error("נא להשלים את שדות החובה לפני שממשיכים");
+      }
+    }
   };
 
   if (isLoading) {
@@ -37,16 +73,50 @@ export default function Profile() {
     );
   }
 
-  // No profile yet - show creation form
+  const completion = calculateProfileCompletion(profile);
+
+  // No profile yet - show creation form with welcome message
   if (!profile) {
     return (
-      <AppLayout>
-        <div className="p-4 max-w-md mx-auto">
-          <h1 className="text-2xl font-bold text-foreground mb-2">יצירת פרופיל</h1>
-          <p className="text-muted-foreground mb-6">
-            מלא את הפרטים כדי להתחיל למצוא התאמות
-          </p>
-          <ProfileForm onSuccess={handleProfileSuccess} />
+      <AppLayout showNav={false}>
+        <div className="min-h-screen flex flex-col p-4 max-w-md mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-6"
+          >
+            {/* Welcome Header */}
+            <div className="text-center pt-8 pb-4">
+              <div className="w-16 h-16 rounded-full bg-primary/10 mx-auto mb-4 flex items-center justify-center">
+                <Sparkles className="w-8 h-8 text-primary" />
+              </div>
+              <h1 className="text-2xl font-bold text-foreground mb-2">
+                ברוכים הבאים! 👋
+              </h1>
+              <p className="text-muted-foreground">
+                בוא ניצור את הפרופיל שלך כדי להתחיל למצוא התאמות
+              </p>
+            </div>
+
+            {/* Steps Indicator */}
+            <div className="flex justify-center gap-2 pb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">
+                  1
+                </div>
+                <span className="text-sm font-medium">פרופיל</span>
+              </div>
+              <div className="w-8 border-t border-border mt-4" />
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-sm">
+                  2
+                </div>
+                <span className="text-sm text-muted-foreground">התאמות</span>
+              </div>
+            </div>
+
+            <ProfileForm onSuccess={handleProfileSuccess} />
+          </motion.div>
         </div>
       </AppLayout>
     );
@@ -56,13 +126,16 @@ export default function Profile() {
   if (isEditing) {
     return (
       <AppLayout>
-        <div className="p-4 max-w-md mx-auto">
+        <div className="p-4 max-w-md mx-auto pb-24">
           <div className="flex items-center justify-between mb-6">
             <h1 className="text-2xl font-bold text-foreground">עריכת פרופיל</h1>
             <Button variant="ghost" onClick={() => setIsEditing(false)}>
               ביטול
             </Button>
           </div>
+          
+          <ProfileProgress completion={completion} className="mb-6" />
+          
           <ProfileForm 
             initialData={profile} 
             onSuccess={handleProfileSuccess} 
@@ -75,8 +148,17 @@ export default function Profile() {
   // View profile
   return (
     <AppLayout>
-      <div className="p-4 max-w-md mx-auto">
-        <div className="flex items-center justify-between mb-6">
+      <div className="p-4 max-w-md mx-auto pb-24">
+        {/* Redirect Alert */}
+        {needsCompletion && (
+          <Alert className="mb-4 border-amber-500/50 bg-amber-500/10">
+            <AlertDescription className="text-amber-700 dark:text-amber-400">
+              נא להשלים את הפרופיל כדי להתחיל לראות התאמות
+            </AlertDescription>
+          </Alert>
+        )}
+
+        <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-bold text-foreground">הפרופיל שלי</h1>
           <div className="flex gap-2">
             <Button variant="outline" size="icon" onClick={() => setIsEditing(true)}>
@@ -93,7 +175,40 @@ export default function Profile() {
           </div>
         </div>
         
+        {/* Progress Card */}
+        <Card className="mb-4">
+          <CardContent className="pt-4">
+            <ProfileProgress completion={completion} />
+          </CardContent>
+        </Card>
+
         <ProfileView profile={profile} />
+
+        {/* Sticky CTA */}
+        <div className="fixed bottom-20 left-0 right-0 p-4 bg-gradient-to-t from-background via-background to-transparent">
+          <div className="max-w-md mx-auto">
+            {completion.isComplete ? (
+              <Button
+                onClick={handleContinueToMatches}
+                className="w-full gap-2"
+                size="lg"
+              >
+                <CheckCircle2 className="w-5 h-5" />
+                המשך להתאמות
+                <ArrowLeft className="w-4 h-4" />
+              </Button>
+            ) : (
+              <Button
+                onClick={() => setIsEditing(true)}
+                className="w-full gap-2"
+                size="lg"
+                variant="outline"
+              >
+                השלם פרופיל לפתיחת התאמות
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
     </AppLayout>
   );
