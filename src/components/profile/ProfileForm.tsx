@@ -13,11 +13,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CityCombobox } from "@/components/ui/city-combobox";
 import { toast } from "sonner";
 import { Loader2, Building2, UserRound, User, MapPin, Calendar, Banknote, CheckCircle2, ArrowLeft } from "lucide-react";
-import { Tables } from "@/integrations/supabase/types";
+import { ProfileFormInput } from "@/hooks/useProfile";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
-type Profile = Tables<"profiles">;
 type UserRole = "clinic" | "worker";
 type JobType = "daily" | "temporary" | "permanent";
 
@@ -78,6 +77,30 @@ const profileSchema = z.object({
 });
 
 type FormData = z.infer<typeof profileSchema>;
+
+// Profile type for initial data (matches what API returns)
+interface Profile {
+  id: string;
+  user_id: string;
+  name: string;
+  role: "clinic" | "worker";
+  position?: string | null;
+  required_position?: string | null;
+  description?: string | null;
+  city?: string | null;
+  preferred_area?: string | null;
+  radius_km?: number | null;
+  experience_years?: number | null;
+  availability_date?: string | null;
+  availability_days?: string[] | null;
+  availability_hours?: string | null;
+  salary_min?: number | null;
+  salary_max?: number | null;
+  job_type?: "daily" | "temporary" | "permanent" | null;
+  avatar_url?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
 
 interface ProfileFormProps {
   initialData?: Profile | null;

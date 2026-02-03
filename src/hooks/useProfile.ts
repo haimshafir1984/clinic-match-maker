@@ -1,79 +1,115 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
+import { 
+  getProfile, 
+  updateProfileApi, 
+  createProfile as createProfileApi,
+  ProfileUpdateData,
+  transformToProfile
+} from "@/lib/api";
 
-type Profile = Tables<"profiles">;
-type ProfileInsert = TablesInsert<"profiles">;
-type ProfileUpdate = TablesUpdate<"profiles">;
+// Profile type inferred from the transform function
+type Profile = ReturnType<typeof transformToProfile>;
+
+// Extended type for ProfileForm data that matches what ProfileForm sends
+export interface ProfileFormInput {
+  name: string;
+  role: "clinic" | "worker";
+  position?: string | null;
+  required_position?: string | null;
+  description?: string | null;
+  city?: string | null;
+  preferred_area?: string | null;
+  radius_km?: number | null;
+  experience_years?: number | null;
+  availability_date?: string | null;
+  availability_days?: string[] | null;
+  availability_hours?: string | null;
+  salary_min?: number | null;
+  salary_max?: number | null;
+  job_type?: "daily" | "temporary" | "permanent" | null;
+}
 
 export function useProfile() {
-  const { user } = useAuth();
+  const { currentUser } = useAuth();
 
   return useQuery({
-    queryKey: ["profile", user?.id],
+    queryKey: ["profile", currentUser?.profileId],
     queryFn: async () => {
-      if (!user) return null;
-      
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (error) throw error;
-      return data as Profile | null;
+      if (!currentUser?.profileId) return null;
+      return getProfile(currentUser.profileId);
     },
-    enabled: !!user,
+    enabled: !!currentUser?.profileId,
   });
 }
 
 export function useCreateProfile() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
 
   return useMutation({
-    mutationFn: async (profile: Omit<ProfileInsert, "user_id">) => {
-      if (!user) throw new Error("User not authenticated");
+    mutationFn: async (profile: ProfileFormInput) => {
+      // Get email from localStorage
+      const pendingEmail = localStorage.getItem("pendingEmail");
+      
+      if (!pendingEmail) {
+        throw new Error("Email is required");
+      }
 
-      const { data, error } = await supabase
-        .from("profiles")
-        .insert({
-          ...profile,
-          user_id: user.id,
-        })
-        .select()
-        .single();
+      // Map frontend role to backend role
+      const role = profile.role === "clinic" ? "CLINIC" : "STAFF";
+      
+      const result = await createProfileApi({
+        email: pendingEmail,
+        name: profile.name,
+        role,
+        position: profile.position || undefined,
+        location: profile.city || profile.preferred_area || undefined,
+        salary_info: profile.salary_min || profile.salary_max ? {
+          min: profile.salary_min || undefined,
+          max: profile.salary_max || undefined,
+        } : undefined,
+        availability: profile.availability_days || profile.availability_hours || profile.availability_date ? {
+          days: profile.availability_days || undefined,
+          hours: profile.availability_hours || undefined,
+          start_date: profile.availability_date || undefined,
+        } : undefined,
+      });
 
-      if (error) throw error;
-      return data as Profile;
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      return result.user;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["profile"] });
+      localStorage.removeItem("pendingEmail");
+      localStorage.removeItem("pendingRole");
     },
   });
 }
 
 export function useUpdateProfile() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { currentUser, refreshCurrentUser } = useAuth();
 
   return useMutation({
-    mutationFn: async (profile: ProfileUpdate) => {
-      if (!user) throw new Error("User not authenticated");
+    mutationFn: async (profile: Partial<ProfileFormInput>) => {
+      if (!currentUser?.profileId) {
+        throw new Error("User not authenticated");
+      }
 
-      const { data, error } = await supabase
-        .from("profiles")
-        .update(profile)
-        .eq("user_id", user.id)
-        .select()
-        .single();
+      const result = await updateProfileApi(currentUser.profileId, profile as ProfileUpdateData);
 
-      if (error) throw error;
-      return data as Profile;
+      if (result.error) {
+        throw new Error(result.error);
+      }
+
+      return result.profile;
     },
-    onSuccess: () => {
+    onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ["profile"] });
+      await refreshCurrentUser();
     },
   });
 }
