@@ -68,7 +68,7 @@ export default function Login() {
         transition={{ duration: 0.5 }}
         className="w-full max-w-md"
       >
-        {/* Logo */}
+        {/* Logo & Value Proposition */}
         <div className="flex flex-col items-center mb-8">
           <div className="relative">
             <div className="w-20 h-20 rounded-full bg-primary flex items-center justify-center mb-4">
@@ -77,13 +77,20 @@ export default function Login() {
             <Heart className="absolute -bottom-1 -left-1 w-6 h-6 text-destructive fill-destructive" />
           </div>
           <h1 className="text-3xl font-bold text-foreground">ClinicMatch</h1>
-          <p className="text-muted-foreground mt-1">השמת עובדי רפואה</p>
+          <p className="text-muted-foreground mt-1 text-center">
+            הפלטפורמה המובילה להתאמות בתחום הרפואה
+          </p>
+          <p className="text-sm text-primary/80 mt-2 text-center font-medium">
+            מרפאות ↔ עובדים מקצועיים
+          </p>
         </div>
 
         <Card className="border-0 shadow-xl">
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">התחברות</CardTitle>
-            <CardDescription>ברוכים הבאים! נא להתחבר לחשבון</CardDescription>
+            <CardTitle className="text-2xl">ברוכים הבאים</CardTitle>
+            <CardDescription>
+              הזינו את האימייל שלכם כדי להתחבר ולהתחיל לקבל התאמות
+            </CardDescription>
           </CardHeader>
           
           {networkError && (
@@ -98,7 +105,7 @@ export default function Login() {
           <form onSubmit={handleSubmit}>
             <CardContent className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="email">אימייל</Label>
+                <Label htmlFor="email">כתובת אימייל</Label>
                 <Input
                   id="email"
                   type="email"
@@ -124,18 +131,23 @@ export default function Login() {
                     מתחבר...
                   </>
                 ) : (
-                  "התחברות"
+                  "כניסה למערכת"
                 )}
               </Button>
               <p className="text-sm text-muted-foreground text-center">
-                אין לך חשבון?{" "}
+                עדיין אין לך חשבון?{" "}
                 <Link to="/register" className="text-primary hover:underline font-medium">
-                  הרשמה
+                  הצטרף עכשיו
                 </Link>
               </p>
             </CardFooter>
           </form>
         </Card>
+
+        {/* Trust indicator */}
+        <p className="text-xs text-muted-foreground text-center mt-6">
+          🔒 המידע שלך מאובטח ולא ישותף עם צד שלישי
+        </p>
       </motion.div>
     </div>
   );

@@ -31,8 +31,8 @@ export default function Matches() {
           <h1 className="text-2xl font-bold text-foreground">ההתאמות שלי</h1>
           <p className="text-sm text-muted-foreground mt-1">
             {activeMatches.length > 0 
-              ? `${activeMatches.length} התאמות פעילות`
-              : "מצא התאמות חדשות"}
+              ? `יש לכם ${activeMatches.length} התאמות פעילות – צרו קשר!`
+              : "עדיין אין התאמות – המשיכו לגלוש"}
           </p>
         </div>
 
@@ -50,14 +50,14 @@ export default function Matches() {
               <Heart className="w-12 h-12 text-primary" />
             </motion.div>
             
-            <h3 className="text-xl font-semibold mb-2">אין התאמות עדיין</h3>
+            <h3 className="text-xl font-semibold mb-2">עוד לא נוצרו התאמות</h3>
             <p className="text-muted-foreground mb-8 max-w-xs mx-auto">
-              התחל לגלוש בפרופילים ולעשות לייק כדי למצוא את ההתאמה המושלמת!
+              גלשו בפרופילים וסמנו עניין – כשגם הצד השני יסמן, תיווצר התאמה!
             </p>
             
             <Link to="/swipe">
               <Button className="gap-2">
-                התחל לגלוש
+                גלו התאמות חדשות
                 <ArrowLeft className="w-4 h-4" />
               </Button>
             </Link>

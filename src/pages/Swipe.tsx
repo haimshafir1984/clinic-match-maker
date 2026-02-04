@@ -124,9 +124,9 @@ export default function Swipe() {
       <div className="flex flex-col h-[calc(100vh-9rem)] max-w-md mx-auto p-4">
         {/* Header */}
         <div className="text-center mb-4">
-          <h1 className="text-2xl font-bold text-foreground">גלישה</h1>
+          <h1 className="text-2xl font-bold text-foreground">גלו התאמות</h1>
           <p className="text-sm text-muted-foreground">
-            החלק ימינה ללייק, שמאלה לדלג
+            החליקו ימינה לסימון עניין, שמאלה לדילוג
           </p>
         </div>
 
