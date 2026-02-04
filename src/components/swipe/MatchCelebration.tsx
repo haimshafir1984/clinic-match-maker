@@ -72,16 +72,19 @@ export function MatchCelebration({
 
           {/* Title */}
           <h2 className="text-2xl font-bold text-foreground mb-2">
-            יש התאמה!
+            🎉 נמצאה התאמה!
           </h2>
           
           {/* Description */}
-          <p className="text-muted-foreground mb-8">
-            עכשיו אפשר ליצור קשר עם{" "}
+          <p className="text-muted-foreground mb-2">
+            גם{" "}
             <span className="font-semibold text-foreground">
               {matchedProfile.name}
             </span>
-            {isMatchedClinic ? " (מרפאה)" : " (מועמד/ת)"}
+            {" "}סימנ/ה עניין בכם!
+          </p>
+          <p className="text-sm text-primary mb-8">
+            עכשיו אפשר ליצור קשר ולהתקדם 🚀
           </p>
 
           {/* Action Buttons */}
@@ -92,7 +95,7 @@ export function MatchCelebration({
               onClick={onChat}
             >
               <MessageCircle className="w-5 h-5" />
-              שלח הודעה
+              שליחת הודעה
             </Button>
             <Button 
               variant="outline" 
@@ -100,7 +103,7 @@ export function MatchCelebration({
               className="w-full gap-2"
               onClick={onClose}
             >
-              המשך לחפש
+              המשך לגלות התאמות
               <ArrowRight className="w-4 h-4" />
             </Button>
           </div>

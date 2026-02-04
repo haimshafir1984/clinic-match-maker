@@ -4,9 +4,9 @@ import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 
 const navItems = [
-  { path: "/swipe", icon: Sparkles, label: "גלישה" },
-  { path: "/matches", icon: Heart, label: "התאמות" },
-  { path: "/chat", icon: MessageCircle, label: "צ'אט" },
+  { path: "/swipe", icon: Sparkles, label: "התאמות" },
+  { path: "/matches", icon: Heart, label: "נמצאו" },
+  { path: "/chat", icon: MessageCircle, label: "הודעות" },
   { path: "/profile", icon: User, label: "פרופיל" },
 ];
 

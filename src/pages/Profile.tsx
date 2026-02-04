@@ -97,10 +97,10 @@ export default function Profile() {
                 <Sparkles className="w-8 h-8 text-primary" />
               </div>
               <h1 className="text-2xl font-bold text-foreground mb-2">
-                ברוכים הבאים! 👋
+                ברוכים הבאים ל-ClinicMatch! 👋
               </h1>
               <p className="text-muted-foreground">
-                בוא ניצור את הפרופיל שלך כדי להתחיל למצוא התאמות
+                בואו ניצור את הפרופיל שלכם כדי להתחיל לקבל התאמות מותאמות אישית
               </p>
             </div>
 
@@ -110,14 +110,14 @@ export default function Profile() {
                 <div className="w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">
                   1
                 </div>
-                <span className="text-sm font-medium">פרופיל</span>
+                <span className="text-sm font-medium">מילוי פרופיל</span>
               </div>
               <div className="w-8 border-t border-border mt-4" />
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-full bg-muted text-muted-foreground flex items-center justify-center text-sm">
                   2
                 </div>
-                <span className="text-sm text-muted-foreground">התאמות</span>
+                <span className="text-sm text-muted-foreground">קבלת התאמות</span>
               </div>
             </div>
 
@@ -159,13 +159,21 @@ export default function Profile() {
         {needsCompletion && (
           <Alert className="mb-4 border-amber-500/50 bg-amber-500/10">
             <AlertDescription className="text-amber-700 dark:text-amber-400">
-              נא להשלים את הפרופיל כדי להתחיל לראות התאמות
+              כדי להתחיל לקבל התאמות – השלימו את הפרטים החסרים בפרופיל
             </AlertDescription>
           </Alert>
         )}
 
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold text-foreground">הפרופיל שלי</h1>
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">הפרופיל שלי</h1>
+            <p className="text-sm text-muted-foreground">
+              {completion.isComplete 
+                ? "הפרופיל מוכן לקבלת התאמות" 
+                : "השלימו את הפרטים להתחלת התאמות"
+              }
+            </p>
+          </div>
           <div className="flex gap-2">
             <Button variant="outline" size="icon" onClick={() => setIsEditing(true)}>
               <Edit2 className="w-4 h-4" />
@@ -190,18 +198,18 @@ export default function Profile() {
 
         <ProfileView profile={profile} />
 
-        {/* Sticky CTA - "Save & Start Matching" for new users */}
+        {/* Sticky CTA */}
         <div className="fixed bottom-20 left-0 right-0 p-4 bg-gradient-to-t from-background via-background to-transparent">
           <div className="max-w-md mx-auto">
             {isNewUser || needsCompletion ? (
-              // New user or redirected user - show "Save & Start Matching"
+              // New user or redirected user
               <Button
                 onClick={handleSaveAndStartMatching}
                 className="w-full gap-2 shadow-lg"
                 size="lg"
               >
                 <Sparkles className="w-5 h-5" />
-                שמור והתחל להתאים
+                התחל לקבל התאמות
                 <ArrowLeft className="w-4 h-4" />
               </Button>
             ) : completion.isComplete ? (
@@ -211,7 +219,7 @@ export default function Profile() {
                 size="lg"
               >
                 <CheckCircle2 className="w-5 h-5" />
-                המשך להתאמות
+                צפייה בהתאמות
                 <ArrowLeft className="w-4 h-4" />
               </Button>
             ) : (
@@ -221,7 +229,7 @@ export default function Profile() {
                 size="lg"
                 variant="outline"
               >
-                השלם פרופיל לפתיחת התאמות
+                השלימו את הפרופיל לפתיחת התאמות
               </Button>
             )}
           </div>

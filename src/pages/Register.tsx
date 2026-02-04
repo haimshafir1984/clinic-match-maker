@@ -155,37 +155,48 @@ export default function Register() {
             exit={{ opacity: 0, x: -20 }}
             className="space-y-4"
           >
-            <p className="text-center text-muted-foreground">מי את/ה?</p>
+            <div className="text-center mb-4">
+              <h3 className="font-semibold text-lg text-foreground mb-1">
+                איך תרצו להשתמש ב-ClinicMatch?
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                בחרו את הסוג שמתאים לכם
+              </p>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <motion.button
                 type="button"
                 whileTap={{ scale: 0.98 }}
                 onClick={() => handleRoleSelect("CLINIC")}
                 className={cn(
-                  "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all",
+                  "flex flex-col items-center gap-2 p-5 rounded-xl border-2 transition-all",
                   role === "CLINIC"
                     ? "border-primary bg-primary/5 text-primary"
                     : "border-border hover:border-primary/50"
                 )}
               >
-                <Building2 className="w-8 h-8" />
-                <span className="font-medium">מרפאה</span>
-                <span className="text-xs text-muted-foreground">מחפשים עובדים</span>
+                <Building2 className="w-10 h-10" />
+                <span className="font-semibold">מרפאה</span>
+                <span className="text-xs text-muted-foreground text-center">
+                  מחפשים עובדים מקצועיים
+                </span>
               </motion.button>
               <motion.button
                 type="button"
                 whileTap={{ scale: 0.98 }}
                 onClick={() => handleRoleSelect("STAFF")}
                 className={cn(
-                  "flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all",
+                  "flex flex-col items-center gap-2 p-5 rounded-xl border-2 transition-all",
                   role === "STAFF"
                     ? "border-primary bg-primary/5 text-primary"
                     : "border-border hover:border-primary/50"
                 )}
               >
-                <UserRound className="w-8 h-8" />
-                <span className="font-medium">עובד/ת</span>
-                <span className="text-xs text-muted-foreground">מחפש/ת עבודה</span>
+                <UserRound className="w-10 h-10" />
+                <span className="font-semibold">איש/אשת מקצוע</span>
+                <span className="text-xs text-muted-foreground text-center">
+                  מחפש/ת הזדמנויות עבודה
+                </span>
               </motion.button>
             </div>
           </motion.div>
@@ -240,6 +251,15 @@ export default function Register() {
             exit={{ opacity: 0, x: -20 }}
             className="space-y-4"
           >
+            <div className="text-center mb-2">
+              <h3 className="font-semibold text-lg text-foreground mb-1">
+                כמעט סיימנו! 🎉
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                רק עוד כמה פרטים ותוכלו להתחיל לקבל התאמות
+              </p>
+            </div>
+
             {/* Selected Positions Display */}
             <div className="flex flex-wrap gap-2 justify-center mb-4">
               {positions.map((pos) => (
@@ -257,7 +277,7 @@ export default function Register() {
               <Input
                 id="name"
                 type="text"
-                placeholder="שם מלא"
+                placeholder="השם שיוצג לצד השני"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 className="text-right"
@@ -266,7 +286,7 @@ export default function Register() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="email">אימייל *</Label>
+              <Label htmlFor="email">כתובת אימייל *</Label>
               <Input
                 id="email"
                 type="email"
@@ -279,14 +299,14 @@ export default function Register() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="city">עיר *</Label>
+              <Label htmlFor="city">עיר / אזור פעילות *</Label>
               <CityCombobox
                 value={city}
                 onChange={setCity}
-                placeholder="בחר עיר"
+                placeholder="בחרו עיר"
               />
               <p className="text-xs text-muted-foreground">
-                חשוב לבחור את שם העיר המדויק להתאמה טובה יותר
+                המיקום עוזר לנו למצוא התאמות רלוונטיות באזור שלכם
               </p>
             </div>
           </motion.div>
@@ -302,7 +322,7 @@ export default function Register() {
         transition={{ duration: 0.5 }}
         className="w-full max-w-md"
       >
-        {/* Logo */}
+        {/* Logo & Value Proposition */}
         <div className="flex flex-col items-center mb-6">
           <div className="relative">
             <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center mb-3">
@@ -311,12 +331,17 @@ export default function Register() {
             <Heart className="absolute -bottom-1 -left-1 w-5 h-5 text-destructive fill-destructive" />
           </div>
           <h1 className="text-2xl font-bold text-foreground">ClinicMatch</h1>
+          <p className="text-xs text-muted-foreground mt-1 text-center">
+            הפלטפורמה להתאמות בתחום הרפואה
+          </p>
         </div>
 
         <Card className="border-0 shadow-xl">
           <CardHeader className="text-center pb-4">
-            <CardTitle className="text-2xl">הרשמה</CardTitle>
-            <CardDescription>צור חשבון חדש והתחל להתאים</CardDescription>
+            <CardTitle className="text-2xl">הצטרפו ל-ClinicMatch</CardTitle>
+            <CardDescription>
+              תהליך קצר של 4 שלבים – ותתחילו לקבל התאמות
+            </CardDescription>
           </CardHeader>
           
           {networkError && (
@@ -361,10 +386,10 @@ export default function Register() {
                     {loading ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin ml-2" />
-                        נרשם...
+                        יוצר את הפרופיל...
                       </>
                     ) : (
-                      "הרשמה"
+                      "סיום והתחלת התאמות"
                     )}
                   </Button>
                 )}
