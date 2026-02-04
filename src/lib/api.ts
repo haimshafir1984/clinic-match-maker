@@ -140,6 +140,18 @@ interface BackendSwipeResponse {
 
 // POST /api/swipe - Record a swipe action
 export async function postSwipe(request: SwipeRequest): Promise<SwipeResponse> {
+  // Validate swiped_id before sending
+  if (!request.swipedId) {
+    console.error("[Swipe API] Invalid swiped_id:", request.swipedId);
+    throw new Error("שגיאה: מזהה משתמש לא תקין");
+  }
+
+  console.log("[Swipe API] Sending swipe request:", {
+    swiper_id: request.swiperId,
+    swiped_id: request.swipedId,
+    type: request.type,
+  });
+
   try {
     const response = await apiCall<BackendSwipeResponse>("/swipe", {
       method: "POST",
@@ -165,8 +177,19 @@ export async function postSwipe(request: SwipeRequest): Promise<SwipeResponse> {
       matchId,
     };
   } catch (error) {
-    console.error("Error posting swipe:", error);
-    throw error;
+    // Enhanced error logging for debugging
+    console.error("[Swipe API] Error details:", {
+      swiperId: request.swiperId,
+      swipedId: request.swipedId,
+      type: request.type,
+      error: error instanceof Error ? error.message : error,
+    });
+    
+    // Re-throw with more context
+    if (error instanceof Error) {
+      throw new Error(`שגיאה ביצירת Match: ${error.message}`);
+    }
+    throw new Error("שגיאה ביצירת Match - נסה שוב");
   }
 }
 
@@ -643,6 +666,22 @@ export async function updateProfileApi(
       position: data.position,
       required_position: data.required_position, // Required for clinics
     };
+
+    // Handle positions array - CRITICAL for matching logic
+    if (data.positions && data.positions.length > 0) {
+      backendData.positions = data.positions;
+      // Also set single position for backward compatibility
+      if (!data.position) {
+        backendData.position = data.positions[0];
+      }
+    }
+
+    // Handle workplace_types array - CRITICAL for matching logic
+    if (data.workplace_types && data.workplace_types.length > 0) {
+      backendData.workplace_types = data.workplace_types;
+    }
+
+    console.log("[updateProfileApi] Sending payload:", JSON.stringify(backendData, null, 2));
     
     // Convert salary fields to salary_info
     if (data.salary_min !== undefined || data.salary_max !== undefined) {
