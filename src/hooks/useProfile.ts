@@ -33,6 +33,8 @@ export interface ProfileFormInput {
   // Recruitment settings (clinic only)
   screening_questions?: string[] | null;
   is_auto_screener_active?: boolean | null;
+  // Boost profile (clinic only)
+  is_urgent?: boolean | null;
 }
 
 export function useProfile() {

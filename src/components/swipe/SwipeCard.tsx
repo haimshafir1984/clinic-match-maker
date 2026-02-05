@@ -2,7 +2,7 @@ import { motion, useMotionValue, useTransform, PanInfo } from "framer-motion";
 import { MatchCardData, SalaryRange } from "@/types";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Briefcase, Calendar, Banknote, MapPin, Clock, Building2, UserRound, Star, CheckCircle2, Sparkles } from "lucide-react";
+import { Briefcase, Calendar, Banknote, MapPin, Clock, Building2, UserRound, Star, CheckCircle2, Sparkles, Flame } from "lucide-react";
 
 interface SwipeCardProps {
   profile: MatchCardData;
@@ -98,6 +98,7 @@ export function SwipeCard({
   // Smart badges
   const isNew = isNewProfile(profile.createdAt);
   const hasSalaryMatch = checkSalaryMatch(profile.salaryRange, currentUserSalary, profile.role);
+  const isUrgent = isClinic && profile.isUrgent;
 
   // Format availability - handle null/undefined
   const availabilityDays = profile.availability?.days
@@ -146,7 +147,7 @@ export function SwipeCard({
         דלג ✕
       </motion.div>
 
-      <Card className="h-full overflow-hidden border-0 shadow-2xl rounded-xl flex flex-col">
+      <Card className={`h-full overflow-hidden shadow-2xl rounded-xl flex flex-col ${isUrgent ? 'border-2 border-orange-500' : 'border-0'}`}>
         {/* Avatar / Image */}
         <div className="relative h-40 bg-gradient-to-br from-primary/20 via-accent to-primary/10 flex items-center justify-center flex-shrink-0">
           {profile.imageUrl ? (
@@ -163,6 +164,16 @@ export function SwipeCard({
           
           {/* Smart Badges - Top Left Corner */}
           <div className="absolute top-3 left-3 flex flex-col gap-2">
+            {/* Urgent Hiring Badge */}
+            {isUrgent && (
+              <Badge 
+                className="bg-orange-500 hover:bg-orange-600 text-white border-0 gap-1 animate-pulse"
+              >
+                <Flame className="w-3 h-3" />
+                🔥 גיוס דחוף
+              </Badge>
+            )}
+            
             {/* New Badge */}
             {isNew && (
               <Badge 
