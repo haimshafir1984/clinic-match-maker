@@ -30,6 +30,9 @@ export interface ProfileFormInput {
   salary_min?: number | null;
   salary_max?: number | null;
   job_type?: "daily" | "temporary" | "permanent" | null;
+  // Recruitment settings (clinic only)
+  screening_questions?: string[] | null;
+  is_auto_screener_active?: boolean | null;
 }
 
 export function useProfile() {
