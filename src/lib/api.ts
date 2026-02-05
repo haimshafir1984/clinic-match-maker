@@ -528,6 +528,9 @@ export interface ProfileUpdateData {
   salary_min?: number | null;
   salary_max?: number | null;
   job_type?: string | null;
+  // Recruitment settings (clinic only)
+  screening_questions?: string[] | null;
+  is_auto_screener_active?: boolean | null;
 }
 
 // Full profile response from backend
@@ -707,6 +710,14 @@ export async function updateProfileApi(
       backendData.location = data.preferred_area;
     }
     
+    // Include recruitment settings (clinic only)
+    if (data.screening_questions !== undefined) {
+      backendData.screening_questions = data.screening_questions;
+    }
+    if (data.is_auto_screener_active !== undefined) {
+      backendData.is_auto_screener_active = data.is_auto_screener_active;
+    }
+    
     // Use POST /api/profiles (upsert endpoint) instead of PUT
     const response = await apiCall<BackendAuthResponse>("/profiles", {
       method: "POST",
@@ -816,6 +827,37 @@ export async function sendMessage(
     return transformToMessage(response);
   } catch (error) {
     console.error("Error sending message:", error);
+    throw error;
+  }
+}
+
+// POST /api/ai/generate-bio - Generate bio using AI
+export async function generateBio(keywords: string, role: string): Promise<string> {
+  try {
+    const response = await apiCall<{ bio: string }>("/ai/generate-bio", {
+      method: "POST",
+      body: JSON.stringify({ keywords, role }),
+    });
+    return response.bio;
+  } catch (error) {
+    console.error("Error generating bio:", error);
+    throw error;
+  }
+}
+
+// POST /api/ai/generate-questions - Generate screening questions using AI
+export async function generateScreeningQuestions(
+  position?: string, 
+  workplaceType?: string
+): Promise<string[]> {
+  try {
+    const response = await apiCall<{ questions: string[] }>("/ai/generate-questions", {
+      method: "POST",
+      body: JSON.stringify({ position, workplace_type: workplaceType }),
+    });
+    return response.questions || [];
+  } catch (error) {
+    console.error("Error generating questions:", error);
     throw error;
   }
 }

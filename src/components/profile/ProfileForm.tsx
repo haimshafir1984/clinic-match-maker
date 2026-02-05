@@ -14,8 +14,10 @@ import { CityCombobox } from "@/components/ui/city-combobox";
 import { Badge } from "@/components/ui/badge";
 import { DomainSelector } from "@/components/registration/DomainSelector";
 import { RoleMultiSelector } from "@/components/registration/RoleMultiSelector";
+import { MagicWriteModal } from "@/components/profile/MagicWriteModal";
+import { RecruitmentSettings } from "@/components/profile/RecruitmentSettings";
 import { toast } from "sonner";
-import { Loader2, Building2, UserRound, User, MapPin, Calendar, Banknote, CheckCircle2, ArrowLeft, Briefcase, X } from "lucide-react";
+import { Loader2, Building2, UserRound, User, MapPin, Calendar, Banknote, CheckCircle2, ArrowLeft, Briefcase, X, Sparkles } from "lucide-react";
 import { ProfileFormInput } from "@/hooks/useProfile";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -89,6 +91,9 @@ interface Profile {
   avatar_url?: string | null;
   created_at?: string;
   updated_at?: string;
+  // Recruitment settings (clinic only)
+  screening_questions?: string[] | null;
+  is_auto_screener_active?: boolean | null;
 }
 
 interface ProfileFormProps {
@@ -164,6 +169,17 @@ export function ProfileForm({ initialData, onSuccess }: ProfileFormProps) {
   );
   const [showDomainSelector, setShowDomainSelector] = useState(false);
   
+  // Magic Write modal state
+  const [showMagicWrite, setShowMagicWrite] = useState(false);
+  
+  // Recruitment settings state (clinic only)
+  const [screeningQuestions, setScreeningQuestions] = useState<string[]>(
+    initialData?.screening_questions || []
+  );
+  const [isAutoScreenerActive, setIsAutoScreenerActive] = useState(
+    initialData?.is_auto_screener_active || false
+  );
+  
   const createProfile = useCreateProfile();
   const updateProfile = useUpdateProfile();
   const isEditing = !!initialData;
@@ -201,6 +217,11 @@ export function ProfileForm({ initialData, onSuccess }: ProfileFormProps) {
           ...data,
           positions: selectedPositions.length > 0 ? selectedPositions : null,
           workplace_types: selectedDomain ? [selectedDomain] : null,
+          // Include recruitment settings for clinics
+          screening_questions: screeningQuestions.filter(q => q.trim()).length > 0 
+            ? screeningQuestions.filter(q => q.trim()) 
+            : null,
+          is_auto_screener_active: isAutoScreenerActive,
         });
       } else {
         if (!data.name || !data.role) {
@@ -408,16 +429,38 @@ export function ProfileForm({ initialData, onSuccess }: ProfileFormProps) {
           error={errors.description?.message}
           hint={`${watch("description")?.length || 0}/500 תווים`}
         >
-          <Textarea
-            {...register("description")}
-            placeholder={isClinic 
-              ? "ספר על המרפאה, האווירה, והציפיות..." 
-              : "ספר על עצמך, הניסיון והיכולות שלך..."}
-            rows={3}
-            className={cn(errors.description && "border-destructive")}
-          />
+          <div className="space-y-2">
+            <div className="flex gap-2">
+              <Textarea
+                {...register("description")}
+                placeholder={isClinic 
+                  ? "ספר על המרפאה, האווירה, והציפיות..." 
+                  : "ספר על עצמך, הניסיון והיכולות שלך..."}
+                rows={3}
+                className={cn("flex-1", errors.description && "border-destructive")}
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowMagicWrite(true)}
+              className="gap-2"
+            >
+              <Sparkles className="w-4 h-4" />
+              כתיבה קסומה ✨
+            </Button>
+          </div>
         </FormField>
       </FormSection>
+
+      {/* Magic Write Modal */}
+      <MagicWriteModal
+        open={showMagicWrite}
+        onOpenChange={setShowMagicWrite}
+        role={currentRole as "clinic" | "worker"}
+        onGenerated={(bio) => setValue("description", bio)}
+      />
 
       {/* Location */}
       <FormSection title="מיקום" icon={<MapPin className="w-4 h-4 text-primary" />}>
@@ -555,6 +598,18 @@ export function ProfileForm({ initialData, onSuccess }: ProfileFormProps) {
           </Select>
         </FormField>
       </FormSection>
+
+      {/* Recruitment Settings - Clinic Only */}
+      {isClinic && isEditing && (
+        <RecruitmentSettings
+          questions={screeningQuestions}
+          isAutoScreenerActive={isAutoScreenerActive}
+          onQuestionsChange={setScreeningQuestions}
+          onAutoScreenerChange={setIsAutoScreenerActive}
+          position={selectedPositions[0] || null}
+          workplaceType={selectedDomain}
+        />
+      )}
 
       {/* Submit Button */}
       <div className="pt-4 pb-8">
