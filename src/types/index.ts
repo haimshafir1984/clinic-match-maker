@@ -32,6 +32,7 @@ export interface MatchCardData {
   jobType: JobType | null;
   radiusKm: number | null;
   createdAt: string | null; // For "New" badge
+  isUrgent?: boolean | null; // For "Urgent Hiring" badge (clinics only)
 }
 
 // Current User object

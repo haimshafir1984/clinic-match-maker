@@ -12,12 +12,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CityCombobox } from "@/components/ui/city-combobox";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DomainSelector } from "@/components/registration/DomainSelector";
 import { RoleMultiSelector } from "@/components/registration/RoleMultiSelector";
 import { MagicWriteModal } from "@/components/profile/MagicWriteModal";
-import { RecruitmentSettings } from "@/components/profile/RecruitmentSettings";
+import { RecruitmentAutomationTab } from "@/components/profile/RecruitmentAutomationTab";
 import { toast } from "sonner";
-import { Loader2, Building2, UserRound, User, MapPin, Calendar, Banknote, CheckCircle2, ArrowLeft, Briefcase, X, Sparkles } from "lucide-react";
+import { Loader2, Building2, UserRound, User, MapPin, Calendar, Banknote, CheckCircle2, ArrowLeft, Briefcase, X, Sparkles, BotMessageSquare } from "lucide-react";
 import { ProfileFormInput } from "@/hooks/useProfile";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -94,6 +95,8 @@ interface Profile {
   // Recruitment settings (clinic only)
   screening_questions?: string[] | null;
   is_auto_screener_active?: boolean | null;
+  // Boost profile (clinic only)
+  is_urgent?: boolean | null;
 }
 
 interface ProfileFormProps {
@@ -179,6 +182,9 @@ export function ProfileForm({ initialData, onSuccess }: ProfileFormProps) {
   const [isAutoScreenerActive, setIsAutoScreenerActive] = useState(
     initialData?.is_auto_screener_active || false
   );
+  const [isUrgent, setIsUrgent] = useState(
+    initialData?.is_urgent || false
+  );
   
   const createProfile = useCreateProfile();
   const updateProfile = useUpdateProfile();
@@ -222,6 +228,7 @@ export function ProfileForm({ initialData, onSuccess }: ProfileFormProps) {
             ? screeningQuestions.filter(q => q.trim()) 
             : null,
           is_auto_screener_active: isAutoScreenerActive,
+          is_urgent: isUrgent,
         });
       } else {
         if (!data.name || !data.role) {
@@ -309,10 +316,12 @@ export function ProfileForm({ initialData, onSuccess }: ProfileFormProps) {
     );
   }
 
-  return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <input type="hidden" {...register("role")} value={currentRole || ""} />
+  // For clinics in edit mode, use tabs layout
+  const renderClinicTabs = isClinic && isEditing;
 
+  // Form sections JSX (reusable for both regular form and tabs)
+  const formSections = (
+    <>
       {/* Basic Info */}
       <FormSection title="פרטים בסיסיים" icon={<User className="w-4 h-4 text-primary" />}>
         <FormField 
@@ -598,65 +607,105 @@ export function ProfileForm({ initialData, onSuccess }: ProfileFormProps) {
           </Select>
         </FormField>
       </FormSection>
+    </>
+  );
 
-      {/* Recruitment Settings - Clinic Only */}
-      {isClinic && isEditing && (
-        <RecruitmentSettings
-          questions={screeningQuestions}
-          isAutoScreenerActive={isAutoScreenerActive}
-          onQuestionsChange={setScreeningQuestions}
-          onAutoScreenerChange={setIsAutoScreenerActive}
-          position={selectedPositions[0] || null}
-          workplaceType={selectedDomain}
-        />
-      )}
+  // Submit button JSX
+  const submitButton = (
+    <div className="pt-4 pb-8">
+      <Button 
+        type="submit" 
+        className="w-full gap-2" 
+        size="lg" 
+        disabled={isLoading}
+      >
+        <AnimatePresence mode="wait">
+          {isLoading ? (
+            <motion.span
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex items-center gap-2"
+            >
+              <Loader2 className="w-4 h-4 animate-spin" />
+              שומר...
+            </motion.span>
+          ) : isEditing ? (
+            <motion.span
+              key="update"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex items-center gap-2"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              עדכן פרופיל
+            </motion.span>
+          ) : (
+            <motion.span
+              key="create"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex items-center gap-2"
+            >
+              המשך להתאמות
+              <ArrowLeft className="w-4 h-4" />
+            </motion.span>
+          )}
+        </AnimatePresence>
+      </Button>
+    </div>
+  );
 
-      {/* Submit Button */}
-      <div className="pt-4 pb-8">
-        <Button 
-          type="submit" 
-          className="w-full gap-2" 
-          size="lg" 
-          disabled={isLoading}
-        >
-          <AnimatePresence mode="wait">
-            {isLoading ? (
-              <motion.span
-                key="loading"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex items-center gap-2"
-              >
-                <Loader2 className="w-4 h-4 animate-spin" />
-                שומר...
-              </motion.span>
-            ) : isEditing ? (
-              <motion.span
-                key="update"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex items-center gap-2"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                עדכן פרופיל
-              </motion.span>
-            ) : (
-              <motion.span
-                key="create"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex items-center gap-2"
-              >
-                המשך להתאמות
-                <ArrowLeft className="w-4 h-4" />
-              </motion.span>
-            )}
-          </AnimatePresence>
-        </Button>
-      </div>
+  // Render with tabs for clinic edit mode
+  if (renderClinicTabs) {
+    return (
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <input type="hidden" {...register("role")} value={currentRole || ""} />
+        
+        <Tabs defaultValue="profile" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="profile" className="gap-2">
+              <User className="w-4 h-4" />
+              פרופיל
+            </TabsTrigger>
+            <TabsTrigger value="recruitment" className="gap-2">
+              <BotMessageSquare className="w-4 h-4" />
+              אוטומציית גיוס
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="profile" className="mt-4 space-y-4">
+            {formSections}
+          </TabsContent>
+          
+          <TabsContent value="recruitment" className="mt-4">
+            <RecruitmentAutomationTab
+              screeningQuestions={screeningQuestions}
+              isAutoScreenerActive={isAutoScreenerActive}
+              isUrgent={isUrgent}
+              position={selectedPositions[0] || null}
+              workplaceType={selectedDomain}
+              onQuestionsChange={setScreeningQuestions}
+              onAutoScreenerChange={setIsAutoScreenerActive}
+              onUrgentChange={setIsUrgent}
+            />
+          </TabsContent>
+        </Tabs>
+
+        {submitButton}
+      </form>
+    );
+  }
+
+  // Regular form for workers or new profiles
+  return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <input type="hidden" {...register("role")} value={currentRole || ""} />
+      {formSections}
+      {submitButton}
     </form>
   );
 }

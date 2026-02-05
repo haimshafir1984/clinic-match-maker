@@ -105,6 +105,7 @@ function transformToMatchCardData(profile: BackendFeedProfile): MatchCardData {
     jobType: null,
     radiusKm: null,
     createdAt: profile.created_at || null,
+    isUrgent: (profile as any).is_urgent || null,
   };
 }
 
@@ -531,6 +532,8 @@ export interface ProfileUpdateData {
   // Recruitment settings (clinic only)
   screening_questions?: string[] | null;
   is_auto_screener_active?: boolean | null;
+  // Boost profile (clinic only)
+  is_urgent?: boolean | null;
 }
 
 // Full profile response from backend
@@ -716,6 +719,11 @@ export async function updateProfileApi(
     }
     if (data.is_auto_screener_active !== undefined) {
       backendData.is_auto_screener_active = data.is_auto_screener_active;
+    }
+    
+    // Include boost profile settings (clinic only)
+    if (data.is_urgent !== undefined) {
+      backendData.is_urgent = data.is_urgent;
     }
     
     // Use POST /api/profiles (upsert endpoint) instead of PUT
