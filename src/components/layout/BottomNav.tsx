@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom";
-import { Heart, MessageCircle, User, Sparkles } from "lucide-react";
+import { Heart, MessageCircle, User, Sparkles, BarChart3 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
 
@@ -7,6 +7,7 @@ const navItems = [
   { path: "/swipe", icon: Sparkles, label: "התאמות" },
   { path: "/matches", icon: Heart, label: "נמצאו" },
   { path: "/chat", icon: MessageCircle, label: "הודעות" },
+  { path: "/insights", icon: BarChart3, label: "תובנות" },
   { path: "/profile", icon: User, label: "פרופיל" },
 ];
 

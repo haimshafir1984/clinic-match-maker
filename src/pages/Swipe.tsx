@@ -1,16 +1,53 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { SwipeCard } from "@/components/swipe/SwipeCard";
 import { SwipeActions } from "@/components/swipe/SwipeActions";
 import { EmptyState } from "@/components/swipe/EmptyState";
 import { MatchCelebration } from "@/components/swipe/MatchCelebration";
+import { NaturalLanguageSearch, SearchFilters } from "@/components/swipe/NaturalLanguageSearch";
 import { useSwipeProfiles, useSwipe } from "@/hooks/useSwipeProfiles";
 import { useAuth } from "@/contexts/AuthContext";
 import { MatchCardData } from "@/types";
 import { Loader2 } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
+
+// Filter profiles based on natural language search
+function filterProfiles(profiles: MatchCardData[], filters: SearchFilters | null): MatchCardData[] {
+  if (!filters) return profiles;
+  
+  return profiles.filter(profile => {
+    if (filters.position && profile.position) {
+      if (!profile.position.toLowerCase().includes(filters.position.toLowerCase())) {
+        return false;
+      }
+    }
+    
+    if (filters.location && profile.location) {
+      if (!profile.location.toLowerCase().includes(filters.location.toLowerCase())) {
+        return false;
+      }
+    }
+    
+    if (filters.days && filters.days.length > 0 && profile.availability?.days) {
+      const hasMatchingDay = filters.days.some(d => 
+        profile.availability.days.map(pd => pd.toLowerCase()).includes(d.toLowerCase())
+      );
+      if (!hasMatchingDay) return false;
+    }
+    
+    if (filters.salaryMin && profile.salaryRange?.min) {
+      if (profile.salaryRange.min < filters.salaryMin) return false;
+    }
+    
+    if (filters.jobType && profile.jobType) {
+      if (profile.jobType !== filters.jobType) return false;
+    }
+    
+    return true;
+  });
+}
 
 export default function Swipe() {
   const navigate = useNavigate();
@@ -23,9 +60,16 @@ export default function Swipe() {
   const [showMatchCelebration, setShowMatchCelebration] = useState(false);
   const [matchedProfile, setMatchedProfile] = useState<MatchCardData | null>(null);
   const [lastMatchId, setLastMatchId] = useState<string | null>(null);
+  const [searchFilters, setSearchFilters] = useState<SearchFilters | null>(null);
 
-  const currentProfile = profiles[currentIndex];
-  const hasMoreProfiles = currentIndex < profiles.length;
+  // Filter profiles based on search
+  const filteredProfiles = useMemo(() => 
+    filterProfiles(profiles, searchFilters), 
+    [profiles, searchFilters]
+  );
+
+  const currentProfile = filteredProfiles[currentIndex];
+  const hasMoreProfiles = currentIndex < filteredProfiles.length;
 
   const handleLike = async () => {
     if (!currentProfile || isSwipeLoading) return;
@@ -72,7 +116,13 @@ export default function Swipe() {
 
   const handleRefresh = () => {
     setCurrentIndex(0);
+    setSearchFilters(null);
     refetch();
+  };
+
+  const handleFiltersChange = (filters: SearchFilters | null) => {
+    setSearchFilters(filters);
+    setCurrentIndex(0); // Reset to first card when filters change
   };
 
   const handleChatWithMatch = () => {
@@ -123,11 +173,19 @@ export default function Swipe() {
     <AppLayout>
       <div className="flex flex-col h-[calc(100vh-9rem)] max-w-md mx-auto p-4">
         {/* Header */}
-        <div className="text-center mb-4">
+        <div className="text-center mb-2">
           <h1 className="text-2xl font-bold text-foreground">גלו התאמות</h1>
           <p className="text-sm text-muted-foreground">
             החליקו ימינה לסימון עניין, שמאלה לדילוג
           </p>
+        </div>
+
+        {/* Natural Language Search */}
+        <div className="mb-3">
+          <NaturalLanguageSearch 
+            onFiltersChange={handleFiltersChange}
+            role={currentUser?.role || 'worker'}
+          />
         </div>
 
         {/* Card Stack */}

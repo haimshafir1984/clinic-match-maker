@@ -15,6 +15,7 @@ import Matches from "./pages/Matches";
 import ChatList from "./pages/ChatList";
 import Chat from "./pages/Chat";
 import Profile from "./pages/Profile";
+import Insights from "./pages/Insights";
 import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
@@ -86,6 +87,18 @@ const App = () => (
                 <AuthGuard>
                   <ProfileGuard>
                     <Chat />
+                  </ProfileGuard>
+                </AuthGuard>
+              }
+            />
+
+            {/* Insights Route */}
+            <Route
+              path="/insights"
+              element={
+                <AuthGuard>
+                  <ProfileGuard>
+                    <Insights />
                   </ProfileGuard>
                 </AuthGuard>
               }
