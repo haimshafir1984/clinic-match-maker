@@ -5,11 +5,17 @@ import { Send } from "lucide-react";
 
 interface ChatInputProps {
   onSend: (content: string) => Promise<unknown>;
+  value?: string;
+  onChange?: (value: string) => void;
 }
 
-export function ChatInput({ onSend }: ChatInputProps) {
-  const [message, setMessage] = useState("");
+export function ChatInput({ onSend, value, onChange }: ChatInputProps) {
+  const [internalMessage, setInternalMessage] = useState("");
   const [sending, setSending] = useState(false);
+  
+  // Use controlled or uncontrolled mode
+  const message = value !== undefined ? value : internalMessage;
+  const setMessage = onChange || setInternalMessage;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -1,7 +1,9 @@
+import { useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ChatMessages } from "@/components/chat/ChatMessages";
 import { ChatInput } from "@/components/chat/ChatInput";
+import { AIChatAssistant } from "@/components/chat/AIChatAssistant";
 import { useChatMessages } from "@/hooks/useChatMessages";
 import { useMatchDetails } from "@/hooks/useMatchDetails";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -13,6 +15,7 @@ export default function Chat() {
   const { matchId } = useParams<{ matchId: string }>();
   const { match, isLoading: matchLoading, closeMatch } = useMatchDetails(matchId!);
   const { messages, isLoading: messagesLoading, sendMessage } = useChatMessages(matchId!);
+  const [inputMessage, setInputMessage] = useState("");
 
   if (matchLoading || messagesLoading) {
     return (
@@ -90,8 +93,23 @@ export default function Chat() {
         {/* Messages */}
         <ChatMessages messages={messages || []} isClosed={match.isClosed} />
 
+        {/* AI Assistant */}
+        {!match.isClosed && (
+          <AIChatAssistant
+            otherProfile={otherProfile}
+            onSelectSuggestion={(suggestion) => setInputMessage(suggestion)}
+            isFirstMessage={!messages || messages.length === 0}
+          />
+        )}
+
         {/* Input */}
-        {!match.isClosed && <ChatInput onSend={sendMessage} />}
+        {!match.isClosed && (
+          <ChatInput 
+            onSend={sendMessage}
+            value={inputMessage}
+            onChange={setInputMessage}
+          />
+        )}
 
         {match.isClosed && (
           <div className="p-4 bg-muted text-center text-sm text-muted-foreground">
